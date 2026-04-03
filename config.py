@@ -8,24 +8,28 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _get_secret_key() -> str:
-    """Retourne une SECRET_KEY sécurisée et persistante.
-    Priorité : 1) variable d'env, 2) fichier .secret_key local, 3) génération + sauvegarde."""
+    """Retourne une SECRET_KEY sécurisée.
+    Priorité : 1) variable d'env (obligatoire en prod), 2) fichier local (dev), 3) génération éphémère."""
+    # 1. Variable d'environnement (Vercel / production)
     if os.environ.get('SECRET_KEY'):
         return os.environ['SECRET_KEY']
-    key_file = os.path.join(BASE_DIR, '.secret_key')
-    if os.path.exists(key_file):
-        with open(key_file, 'r') as f:
-            k = f.read().strip()
-            if k:
-                return k
-    # Générer une clé aléatoire et la persister (dev/prod sans variable d'env)
-    new_key = secrets.token_hex(32)
-    try:
-        with open(key_file, 'w') as f:
-            f.write(new_key)
-    except OSError:
-        pass
-    return new_key
+    # 2. Fichier local (développement)
+    if not os.environ.get('VERCEL'):
+        key_file = os.path.join(BASE_DIR, '.secret_key')
+        if os.path.exists(key_file):
+            with open(key_file, 'r') as f:
+                k = f.read().strip()
+                if k:
+                    return k
+        new_key = secrets.token_hex(32)
+        try:
+            with open(key_file, 'w') as f:
+                f.write(new_key)
+        except OSError:
+            pass
+        return new_key
+    # 3. Éphémère (Vercel sans SECRET_KEY — sessions non persistantes entre cold starts)
+    return secrets.token_hex(32)
 
 # Cache pour eviter de tester la connexion plusieurs fois
 _DB_URI_CACHE = None

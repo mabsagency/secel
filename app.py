@@ -19,6 +19,7 @@ from werkzeug.utils import secure_filename
 from config import Config
 from models import (db, User, Course, Video, PDFContent, Enrollment,
                     WatchHistory, Notification, VideoProgress, Payment)
+from storage import upload_file, upload_file_as_path, delete_file, get_signed_url, is_supabase_url
 from chatbot_data import get_chatbot_response
 from payment_api import (initiate_moneroo_payment, verify_moneroo_payment,
                          confirm_payment_from_callback, check_payment_status,
@@ -947,17 +948,19 @@ def upload_content(course_id):
             if video_type == 'local' and 'video_file' in request.files:
                 f = request.files['video_file']
                 if f and f.filename and allowed_video(f.filename):
-                    fname     = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_filename(f.filename)}"
-                    save_path = os.path.join(Config.STATIC_UPLOAD_FOLDER, fname)
-                    os.makedirs(Config.STATIC_UPLOAD_FOLDER, exist_ok=True)
-                    f.save(save_path)
-                    # Try to get file size for info
-                    vid = Video(title=title or f.filename, description=description,
-                                course_id=course_id, file_path=f'uploads/{fname}',
-                                is_local=True, order_index=order_idx,
-                                duration_seconds=duration)
-                    db.session.add(vid)
-                    db.session.commit()
+                    # Sur Vercel les uploads vidéo locaux sont impossibles (limite 50 MB)
+                    if os.environ.get('VERCEL'):
+                        if is_ajax:
+                            return jsonify({'success': False, 'message': 'Upload vidéo local non disponible sur Vercel. Utilisez une URL YouTube ou externe.'}), 400
+                        flash('Upload vidéo local non disponible en production. Utilisez une URL YouTube.', 'warning')
+                    else:
+                        stored = upload_file_as_path(f, 'video')
+                        vid = Video(title=title or f.filename, description=description,
+                                    course_id=course_id, file_path=stored,
+                                    is_local=not is_supabase_url(stored), order_index=order_idx,
+                                    duration_seconds=duration)
+                        db.session.add(vid)
+                        db.session.commit()
                     if not is_ajax:
                         flash('Vidéo locale uploadée ! En attente de validation admin.', 'success')
                 elif is_ajax:
@@ -1001,12 +1004,9 @@ def upload_content(course_id):
                     if file_size > Config.MAX_PDF_SIZE_BYTES:
                         flash(f'PDF trop volumineux (max {Config.MAX_PDF_SIZE_BYTES // (1024*1024)} MB).', 'danger')
                     else:
-                        fname     = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_filename(f.filename)}"
-                        save_path = os.path.join(Config.STATIC_UPLOAD_FOLDER, fname)
-                        os.makedirs(Config.STATIC_UPLOAD_FOLDER, exist_ok=True)
-                        f.save(save_path)
+                        stored = upload_file_as_path(f, 'pdf')
                         pdf = PDFContent(title=title, description=description,
-                                         course_id=course_id, file_path=f'uploads/{fname}')
+                                         course_id=course_id, file_path=stored)
                         db.session.add(pdf)
                         db.session.commit()
                         flash('PDF uploadé ! En attente de validation.', 'success')
@@ -1035,7 +1035,6 @@ def upload_ebook(course_id):
         return redirect(url_for('upload_content', course_id=course_id))
 
     if request.method == 'POST':
-        os.makedirs(Config.STATIC_UPLOAD_FOLDER, exist_ok=True)
         file_type = request.form.get('_file_type', 'both')
         updated   = False
 
@@ -1046,13 +1045,8 @@ def upload_ebook(course_id):
                 cover_file.seek(0, 2); cover_size = cover_file.tell(); cover_file.seek(0)
                 if cover_size > Config.MAX_IMAGE_SIZE_BYTES:
                     return jsonify({'success': False, 'message': f'Image trop volumineuse (max {Config.MAX_IMAGE_SIZE_BYTES//(1024*1024)} MB).'}), 400
-                # Delete old cover
-                if course.ebook_cover:
-                    old_fp = os.path.join(app.static_folder, course.ebook_cover)
-                    if os.path.exists(old_fp): os.remove(old_fp)
-                fname = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_cover_{secure_filename(cover_file.filename)}"
-                cover_file.save(os.path.join(Config.STATIC_UPLOAD_FOLDER, fname))
-                course.ebook_cover = f'uploads/{fname}'
+                delete_file(course.ebook_cover)
+                course.ebook_cover = upload_file_as_path(cover_file, 'cover')
                 updated = True
 
         # ── eBook PDF ─────────────────────────────────────────────
@@ -1062,13 +1056,8 @@ def upload_ebook(course_id):
                 pdf_file.seek(0, 2); ebook_size = pdf_file.tell(); pdf_file.seek(0)
                 if ebook_size > Config.MAX_PDF_SIZE_BYTES:
                     return jsonify({'success': False, 'message': f'PDF trop volumineux (max {Config.MAX_PDF_SIZE_BYTES//(1024*1024)} MB).'}), 400
-                # Delete old PDF
-                if course.ebook_file:
-                    old_fp = os.path.join(app.static_folder, course.ebook_file)
-                    if os.path.exists(old_fp): os.remove(old_fp)
-                fname = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_ebook_{secure_filename(pdf_file.filename)}"
-                pdf_file.save(os.path.join(Config.STATIC_UPLOAD_FOLDER, fname))
-                course.ebook_file = f'uploads/{fname}'
+                delete_file(course.ebook_file)
+                course.ebook_file = upload_file_as_path(pdf_file, 'ebook')
                 updated = True
 
         if updated:
@@ -1079,11 +1068,9 @@ def upload_ebook(course_id):
 
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if is_ajax:
-            return jsonify({
-                'success': updated,
-                'cover_url': url_for('static', filename=course.ebook_cover) if course.ebook_cover else None,
-                'has_pdf':   bool(course.ebook_file),
-            })
+            cover_val = course.ebook_cover
+            cover_url = cover_val if is_supabase_url(cover_val) else (url_for('static', filename=cover_val) if cover_val else None)
+            return jsonify({'success': updated, 'cover_url': cover_url, 'has_pdf': bool(course.ebook_file)})
         return redirect(url_for('upload_ebook', course_id=course_id))
 
     return render_template('teacher/upload_ebook.html', course=course)
@@ -1097,10 +1084,7 @@ def delete_ebook_file(course_id):
     course = Course.query.get_or_404(course_id)
     if course.teacher_id != current_user.id and current_user.role != 'admin': abort(403)
     if course.ebook_file:
-        # ebook_file is stored as 'uploads/filename.pdf'
-        fp = os.path.join(app.static_folder, course.ebook_file)
-        if os.path.exists(fp):
-            os.remove(fp)
+        delete_file(course.ebook_file)
         course.ebook_file = None
         db.session.commit()
         flash('PDF supprimé avec succès.', 'success')
@@ -1120,9 +1104,7 @@ def delete_ebook_cover(course_id):
     course = Course.query.get_or_404(course_id)
     if course.teacher_id != current_user.id and current_user.role != 'admin': abort(403)
     if course.ebook_cover:
-        fp = os.path.join(app.static_folder, course.ebook_cover)
-        if os.path.exists(fp):
-            os.remove(fp)
+        delete_file(course.ebook_cover)
         course.ebook_cover = None
         db.session.commit()
         flash('Image de couverture supprimée.', 'success')
@@ -1186,15 +1168,10 @@ def update_course(course_id):
             flash(f'Image trop volumineuse (max {Config.MAX_IMAGE_SIZE_BYTES//(1024*1024)} MB).', 'danger')
             thumb_file = None
     if thumb_file and thumb_file.filename and allowed_image(thumb_file.filename):
-        fname = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_thumb_{secure_filename(thumb_file.filename)}"
-        thumb_file.save(os.path.join(Config.STATIC_UPLOAD_FOLDER, fname))
-        # Remove old thumbnail file
-        if course.thumbnail:
-            old_path = os.path.join(Config.STATIC_UPLOAD_FOLDER, course.thumbnail)
-            if os.path.exists(old_path):
-                os.remove(old_path)
-        course.thumbnail = fname
-        thumb_url = url_for('static', filename=f'uploads/{fname}')
+        delete_file(course.thumbnail)
+        stored = upload_file(thumb_file, 'thumb')
+        course.thumbnail = stored
+        thumb_url = stored if is_supabase_url(stored) else url_for('static', filename=f'uploads/{stored}')
 
     # Expiration date
     expires_raw = request.form.get('expires_at', '').strip()
@@ -1227,9 +1204,8 @@ def update_course(course_id):
 def delete_video(video_id):
     video = Video.query.get_or_404(video_id)
     if video.course.teacher_id != current_user.id and current_user.role != 'admin': abort(403)
-    if video.is_local and video.file_path:
-        fp = os.path.join(app.static_folder, video.file_path)
-        if os.path.exists(fp): os.remove(fp)
+    if video.file_path:
+        delete_file(video.file_path)
     db.session.delete(video)
     db.session.commit()
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -1379,9 +1355,8 @@ def reject_video(video_id):
     video = Video.query.get_or_404(video_id)
     tid, ttl = video.course.teacher_id, video.title
     reason = request.form.get('reason', '').strip()
-    if video.is_local and video.file_path:
-        fp = os.path.join(app.static_folder, video.file_path)
-        if os.path.exists(fp): os.remove(fp)
+    if video.file_path:
+        delete_file(video.file_path)
     db.session.delete(video)
     db.session.commit()
     msg = f'Votre vidéo "{ttl}" a été refusée.'
@@ -1468,35 +1443,16 @@ def delete_course(course_id):
 
     title = course.title  # garder pour le message flash
 
-    # Supprimer les fichiers locaux des vidéos avant suppression DB
+    # Supprimer tous les fichiers du cours (Supabase Storage ou local)
     for video in course.videos.all():
-        if video.is_local and video.file_path:
-            fp = os.path.join(app.static_folder, video.file_path)
-            if os.path.exists(fp):
-                try:
-                    os.remove(fp)
-                except OSError:
-                    pass
-
-    # Supprimer les fichiers PDF et couvertures eBook si local
+        if video.file_path:
+            delete_file(video.file_path)
     for pdf in course.pdfs.all():
         if pdf.file_path:
-            fp = os.path.join(app.static_folder, pdf.file_path)
-            if os.path.exists(fp):
-                try:
-                    os.remove(fp)
-                except OSError:
-                    pass
-    # Supprimer couverture & fichier principal eBook
-    for ebook_attr in ('ebook_cover', 'ebook_file'):
-        ebook_path = getattr(course, ebook_attr, None)
-        if ebook_path:
-            fp = os.path.join(app.static_folder, ebook_path)
-            if os.path.exists(fp):
-                try:
-                    os.remove(fp)
-                except OSError:
-                    pass
+            delete_file(pdf.file_path)
+    delete_file(course.ebook_cover)
+    delete_file(course.ebook_file)
+    delete_file(course.thumbnail)
 
     # Supprimer le cours (SQLAlchemy cascade supprime les enfants)
     db.session.delete(course)
@@ -1610,13 +1566,16 @@ def delete_user(uid):
         if u.role == 'teacher':
             teacher_courses = Course.query.filter_by(teacher_id=u.id).all()
             for course in teacher_courses:
-                # Supprimer les fichiers vidéo locaux
+                # Supprimer tous les fichiers (Supabase ou local)
                 for video in course.videos.all():
-                    if video.is_local and video.file_path:
-                        fp = os.path.join(app.static_folder, video.file_path)
-                        if os.path.exists(fp):
-                            try: os.remove(fp)
-                            except OSError: pass
+                    if video.file_path:
+                        delete_file(video.file_path)
+                for pdf in course.pdfs.all():
+                    if pdf.file_path:
+                        delete_file(pdf.file_path)
+                delete_file(course.ebook_cover)
+                delete_file(course.ebook_file)
+                delete_file(course.thumbnail)
                 # Supprimer les inscriptions et progressions liées aux cours
                 Enrollment.query.filter_by(course_id=course.id).delete()
                 for v in course.videos.all():
@@ -2266,38 +2225,46 @@ def profile():
 # ══════════════════════════════════════════════════════════════
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    """Sert les fichiers uploadés avec contrôle d'accès."""
+    """Sert les fichiers uploadés avec contrôle d'accès.
+    - Fichiers locaux : servis par Flask directement.
+    - Fichiers Supabase : cette route n'est jamais appelée (URLs directes dans les templates).
+    """
     file_path = f'uploads/{filename}'
+    _video_exts = ('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv')
+
+    def _check_enrolled(course_obj):
+        """Vérifie que l'utilisateur a accès au contenu payant."""
+        if not current_user.is_authenticated:
+            abort(403)
+        if current_user.role == 'admin':
+            return
+        if current_user.role == 'teacher' and course_obj.teacher_id == current_user.id:
+            return
+        if not Enrollment.query.filter_by(student_id=current_user.id, course_id=course_obj.id).first():
+            abort(403)
 
     # Ebooks PDF payants
     if filename.lower().endswith('.pdf'):
         paid_ebook = Course.query.filter_by(ebook_file=file_path).first()
         if paid_ebook and not paid_ebook.is_free:
-            if not current_user.is_authenticated:
-                abort(403)
-            _is_admin   = current_user.role == 'admin'
-            _is_owner   = (current_user.role == 'teacher' and
-                           paid_ebook.teacher_id == current_user.id)
-            _is_enrolled = bool(Enrollment.query.filter_by(
-                student_id=current_user.id, course_id=paid_ebook.id).first())
-            if not (_is_admin or _is_owner or _is_enrolled):
-                abort(403)
+            _check_enrolled(paid_ebook)
+            # Si stocké sur Supabase → URL signée temporaire
+            if is_supabase_url(paid_ebook.ebook_file):
+                signed = get_signed_url(paid_ebook.ebook_file)
+                if signed:
+                    return redirect(signed)
 
     # Vidéos locales payantes
-    _video_exts = ('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv')
     if filename.lower().endswith(_video_exts):
         vid_obj = Video.query.filter_by(file_path=file_path).first()
-        if vid_obj and not vid_obj.course.is_free:
-            if not current_user.is_authenticated:
-                abort(403)
-            _course = Course.query.get(vid_obj.course_id)
-            _is_admin   = current_user.role == 'admin'
-            _is_owner   = (current_user.role == 'teacher' and _course and
-                           _course.teacher_id == current_user.id)
-            _is_enrolled = bool(Enrollment.query.filter_by(
-                student_id=current_user.id, course_id=vid_obj.course_id).first())
-            if not (_is_admin or _is_owner or _is_enrolled):
-                abort(403)
+        if vid_obj:
+            course_obj = Course.query.get(vid_obj.course_id)
+            if course_obj and not course_obj.is_free:
+                _check_enrolled(course_obj)
+                if is_supabase_url(vid_obj.file_path):
+                    signed = get_signed_url(vid_obj.file_path)
+                    if signed:
+                        return redirect(signed)
 
     return send_from_directory(app.static_folder, file_path)
 
@@ -2315,6 +2282,24 @@ def forbidden(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('errors/500.html'), 500
+
+# ── Cron Vercel — nettoyage nocturne ─────────────────────────
+@app.route('/api/cron/cleanup', methods=['GET', 'POST'])
+def cron_cleanup():
+    """Appelé par Vercel Cron Jobs à 02:00 UTC. Protégé par CRON_SECRET."""
+    cron_secret = os.environ.get('CRON_SECRET', '')
+    if os.environ.get('VERCEL') and cron_secret:
+        auth = request.headers.get('Authorization', '')
+        if auth != f'Bearer {cron_secret}':
+            return jsonify({'error': 'Unauthorized'}), 401
+    try:
+        videos, courses = _run_cleanup()
+        return jsonify({'ok': True, 'deleted_videos': videos,
+                        'deleted_courses': courses,
+                        'timestamp': datetime.utcnow().isoformat()})
+    except Exception as e:
+        app.logger.error(f'Cron cleanup error: {e}')
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     if os.environ.get('VERCEL'):

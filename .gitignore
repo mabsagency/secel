@@ -31,3 +31,7 @@ static/uploads/
 # ── OS ────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Secrets locaux ────────────────────────────────────────────
+.secret_key
+requirements_check.txt
