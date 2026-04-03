@@ -259,8 +259,11 @@ def _run_oauth_migration():
         app.logger.warning(f'OAuth migration skipped: {e}')
 
 with app.app_context():
-    db.create_all()
-    _run_oauth_migration()
+    try:
+        db.create_all()
+        _run_oauth_migration()
+    except Exception as _db_init_err:
+        app.logger.error(f'DB init error (non-fatal): {_db_init_err}')
 
 # ── Helpers ───────────────────────────────────────────────────
 @login_manager.user_loader

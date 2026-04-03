@@ -84,8 +84,12 @@ def _build_db_uri() -> str:
             print('[CONFIG]   -> Recuperez DATABASE_URL dans :')
             print('[CONFIG]      Supabase Dashboard > Settings > Database > Connection string')
 
-    # 3. SQLite local (fallback developpement)
-    _DB_URI_CACHE = 'sqlite:///' + os.path.join(BASE_DIR, 'secel.db')
+    # 3. SQLite local (fallback développement)
+    # Sur Vercel /var/task est read-only → utiliser /tmp (éphémère mais accessible)
+    if os.environ.get('VERCEL'):
+        _DB_URI_CACHE = 'sqlite:////tmp/secel.db'
+    else:
+        _DB_URI_CACHE = 'sqlite:///' + os.path.join(BASE_DIR, 'secel.db')
     return _DB_URI_CACHE
 
 

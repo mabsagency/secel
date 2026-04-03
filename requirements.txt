@@ -1,5 +1,5 @@
 # ================================================================
-# SECEL — Dépendances Python
+# SECEL — Dépendances Python (Vercel-compatible)
 # Compatible Python 3.10+
 # ================================================================
 
@@ -21,9 +21,6 @@ WTForms>=3.2.0
 # Rate limiting
 Flask-Limiter>=4.1.1
 
-# Tâches planifiées (auto-suppression — désactivé sur Vercel)
-APScheduler>=3.10.4
-
 # Variables d'environnement (.env)
 python-dotenv>=1.0.0
 
@@ -34,8 +31,12 @@ requests>=2.31.0
 # Driver PostgreSQL pour SQLAlchemy (Supabase)
 psycopg2-binary>=2.9.9
 
-# Client Python Supabase
+# Client Supabase (realtime, storage — optionnel, fallback si absent)
 supabase>=2.4.0
 
-# Google Gemini AI — chatbot SELA
-google-genai>=1.0.0
+# Tâches planifiées (local uniquement — désactivé sur Vercel via env VERCEL=1)
+APScheduler>=3.10.4
+
+# NOTE : google-genai retiré volontairement (bundle ~277MB > limite Vercel 250MB)
+# Le chatbot fonctionne sans Gemini (réponses statiques en fallback).
+# Pour activer Gemini en local : pip install google-genai
