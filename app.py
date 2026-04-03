@@ -2123,13 +2123,10 @@ def chatbot():
     data    = request.get_json() or {}
     message = data.get('message', '').strip()
     lang    = data.get('lang')
-    # Historique de conversation envoyé par le frontend (list de {role, content})
     history = data.get('history', [])
     if not isinstance(history, list):
         history = []
-    # Limiter l'historique à 20 entrées max pour éviter les abus
     history = history[-20:]
-    # Sanitiser chaque entrée de l'historique
     clean_history = []
     for entry in history:
         if isinstance(entry, dict):
@@ -2139,15 +2136,13 @@ def chatbot():
                 clean_history.append({'role': role, 'content': content})
     if not message:
         return jsonify({'response': '...', 'lang': 'fr'})
-    # Limiter la taille du message pour éviter l'abus de l'API Gemini
     if len(message) > 1000:
         return jsonify({'response': 'Message trop long (max 1000 caractères).', 'lang': 'fr'}), 400
     response, detected_lang = get_chatbot_response(message, lang, clean_history)
     return jsonify({'response': response, 'lang': detected_lang})
 
 # ══════════════════════════════════════════════════════════════
-#  NOTIFICATIONS + REAL-TIME (SSE fallback pour les navigateurs
-#  qui n'utilisent pas le client Supabase JS)
+#  NOTIFICATIONS + REAL-TIME
 # ══════════════════════════════════════════════════════════════
 @app.route('/notifications/mark-read/<int:nid>', methods=['POST'])
 @login_required
@@ -2166,7 +2161,6 @@ def mark_all_notifications_read():
 @app.route('/api/notifications/count')
 @login_required
 def notification_count():
-    """API JSON — nombre de notifications non lues (polling léger)."""
     count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
     latest = (Notification.query
               .filter_by(user_id=current_user.id, is_read=False)
@@ -2188,18 +2182,13 @@ def notification_count():
 @app.route('/api/sse/notifications')
 @login_required
 def sse_notifications():
-    """
-    Server-Sent Events — flux temps réel de notifications.
-    Utilisé en FALLBACK si le client Supabase JS n'est pas disponible.
-    Compatible avec EventSource() côté browser.
-    """
     user_id = current_user.id
 
     def event_stream():
         import time
         last_check  = datetime.utcnow()
         retry_count = 0
-        while retry_count < 120:   # max 2 minutes de connexion (puis le client reconnecte)
+        while retry_count < 120:
             time.sleep(3)
             retry_count += 1
             with app.app_context():
@@ -2219,15 +2208,14 @@ def sse_notifications():
                         })
                         yield f'data: {data}\n\n'
                 else:
-                    yield ': ping\n\n'   # keepalive
+                    yield ': ping\n\n'
 
     return Response(
         stream_with_context(event_stream()),
         mimetype='text/event-stream',
         headers={
             'Cache-Control':     'no-cache',
-            'X-Accel-Buffering': 'no',   # désactive le buffering Nginx
-            # CORS restreint à la même origine (pas de wildcard)
+            'X-Accel-Buffering': 'no',
             'Access-Control-Allow-Origin': request.host_url.rstrip('/'),
         }
     )
@@ -2253,7 +2241,6 @@ def profile():
         pwd     = request.form.get('new_password', '').strip()
         old_pwd = request.form.get('current_password', '')
         if pwd:
-            # Vérifier le mot de passe actuel avant de le changer (protection session hijack)
             if not current_user.check_password(old_pwd):
                 flash('Mot de passe actuel incorrect.', 'danger')
                 return redirect(url_for('profile'))
@@ -2261,7 +2248,6 @@ def profile():
                 flash('Le nouveau mot de passe doit contenir au moins 8 caractères.', 'danger')
                 return redirect(url_for('profile'))
             current_user.set_password(pwd)
-        # Valider l'URL du portfolio (interdire les URL javascript:)
         portfolio = request.form.get('portfolio_url', '').strip()
         if portfolio and not portfolio.lower().startswith(('http://', 'https://')):
             portfolio = ''
@@ -2277,10 +2263,10 @@ def profile():
 # ══════════════════════════════════════════════════════════════
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    """Sert les fichiers uploadés avec contrôle d'accès pour les contenus payants."""
+    """Sert les fichiers uploadés avec contrôle d'accès."""
     file_path = f'uploads/{filename}'
 
-    # ── Ebooks PDF payants : vérifier l'inscription ──────────────
+    # Ebooks PDF payants
     if filename.lower().endswith('.pdf'):
         paid_ebook = Course.query.filter_by(ebook_file=file_path).first()
         if paid_ebook and not paid_ebook.is_free:
@@ -2294,65 +2280,41 @@ def uploaded_file(filename):
             if not (_is_admin or _is_owner or _is_enrolled):
                 abort(403)
 
-    # ── Vidéos locales payantes : vérifier l'inscription ─────────
+    # Vidéos locales payantes
     _video_exts = ('.mp4', '.webm', '.avi', '.mov', '.mkv', '.wmv')
     if filename.lower().endswith(_video_exts):
         vid_obj = Video.query.filter_by(file_path=file_path).first()
-        if vid_obj:
-            vid_course = Course.query.get(vid_obj.course_id)
-            if vid_course and not vid_course.is_free:
-                if not current_user.is_authenticated:
-                    abort(403)
-                _is_admin   = current_user.role == 'admin'
-                _is_owner   = (current_user.role == 'teacher' and
-                               vid_course.teacher_id == current_user.id)
-                _is_enrolled = bool(Enrollment.query.filter_by(
-                    student_id=current_user.id, course_id=vid_course.id).first())
-                if not (_is_admin or _is_owner or _is_enrolled):
-                    abort(403)
+        if vid_obj and not vid_obj.course.is_free:
+            if not current_user.is_authenticated:
+                abort(403)
+            _course = Course.query.get(vid_obj.course_id)
+            _is_admin   = current_user.role == 'admin'
+            _is_owner   = (current_user.role == 'teacher' and _course and
+                           _course.teacher_id == current_user.id)
+            _is_enrolled = bool(Enrollment.query.filter_by(
+                student_id=current_user.id, course_id=vid_obj.course_id).first())
+            if not (_is_admin or _is_owner or _is_enrolled):
+                abort(403)
 
-    return send_from_directory(Config.STATIC_UPLOAD_FOLDER, filename)
+    return send_from_directory(app.static_folder, file_path)
 
 # ══════════════════════════════════════════════════════════════
 #  ERROR HANDLERS
 # ══════════════════════════════════════════════════════════════
 @app.errorhandler(404)
-def e404(e): return render_template('errors/404.html'), 404
+def not_found(e):
+    return render_template('errors/404.html'), 404
+
 @app.errorhandler(403)
-def e403(e): return render_template('errors/403.html'), 403
+def forbidden(e):
+    return render_template('errors/403.html'), 403
+
 @app.errorhandler(500)
-def e500(e): return render_template('errors/500.html'), 500
+def server_error(e):
+    return render_template('errors/500.html'), 500
 
-# ── Route Cron Vercel (nettoyage nocturne) ────────────────────
-@app.route('/api/cron/cleanup', methods=['GET', 'POST'])
-def cron_cleanup():
-    """Endpoint appelé par Vercel Cron Jobs à 02:00 UTC chaque nuit.
-    Protégé par le header Authorization que Vercel injecte automatiquement."""
-    auth = request.headers.get('Authorization', '')
-    cron_secret = os.environ.get('CRON_SECRET', '')
-    # En production Vercel, vérifier le secret ; en local, toujours autoriser
-    if os.environ.get('VERCEL') and cron_secret and auth != f'Bearer {cron_secret}':
-        return jsonify({'error': 'Unauthorized'}), 401
-    try:
-        videos, courses = _run_cleanup()
-        return jsonify({
-            'ok': True,
-            'deleted_videos': videos,
-            'deleted_courses': courses,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-    except Exception as e:
-        app.logger.error(f'Cron cleanup error: {e}')
-        return jsonify({'ok': False, 'error': str(e)}), 500
-
-
-# ══════════════════════════════════════════════════════════════
-#  DB INIT
-# ══════════════════════════════════════════════════════════════
 if __name__ == '__main__':
-    with app.app_context():
-        db.drop_all()    # fresh start (remove in production)
-        db.create_all()
-        from seed_data import seed_all
-        seed_all(app)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    if os.environ.get('VERCEL'):
+        pass  # Running on Vercel serverless — don't call app.run()
+    else:
+        app.run(debug=True, host='0.0.0.0', port=5000)
