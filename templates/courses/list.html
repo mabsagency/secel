@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+{% block title %}Catalogue de Formations en Ligne — SECEL RDC{% endblock %}
+{% block meta_description %}Découvrez {{ courses|length }} formations en ligne sur SECEL. Développement web, marketing digital, gestion, design et plus — cours certifiants en français depuis Kinshasa, RDC.{% endblock %}
+{% block meta_keywords %}formations en ligne RDC, cours certifiants Congo, e-learning Kinshasa, apprendre en ligne Afrique, SECEL catalogue formations{% endblock %}
+{% block canonical %}{{ url_for('courses', _external=True) }}{% endblock %}
+
+{% block schema_org %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Catalogue de formations SECEL",
+  "description": "Formations en ligne certifiantes disponibles sur SECEL — RDC",
+  "numberOfItems": {{ courses|length }},
+  "itemListElement": [
+    {% for course in courses[:10] %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "item": {
+        "@type": "Course",
+        "name": {{ course.title | tojson }},
+        "url": "{{ url_for('course_detail', course_id=course.id, _external=True) }}",
+        "provider": { "@type": "EducationalOrganization", "name": "SECEL" },
+        "isAccessibleForFree": {{ "true" if course.is_free else "false" }}
+      }
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page Header ── -->
+<div class="course-list-header">
+  <div class="container">
+    <div class="clh-content">
+      <div class="clh-badge"><i class="fas fa-star me-2 text-gold"></i>Formations Premium</div>
+      <h1 class="clh-title">Catalogue de <span class="text-gold">Formations</span></h1>
+      <p class="clh-sub">{{ courses|length }} formation{{ 's' if courses|length != 1 }} disponibles — Apprenez à votre rythme</p>
+    </div>
+  </div>
+</div>
+
+<div class="container py-5">
+  <div class="row g-4">
+
+    <!-- ── Filters Sidebar ── -->
+    <div class="col-lg-3">
+      <div class="filter-sidebar">
+        <div class="filter-header">
+          <i class="fas fa-sliders-h me-2 text-gold"></i>Filtres
+        </div>
+        <form method="GET" action="{{ url_for('courses') }}" class="filter-body">
+
+          <div class="filter-group">
+            <label class="filter-label">Rechercher</label>
+            <div class="input-icon-wrap">
+              <i class="fas fa-search input-icon"></i>
+              <input type="text" name="search" class="input-secel" style="padding-left:2.2rem;height:40px;font-size:.85rem"
+                     value="{{ request.args.get('search','') }}" placeholder="Mot-clé, enseignant…"/>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Catégorie</label>
+            <select name="category" class="input-secel" style="height:40px;font-size:.85rem">
+              <option value="">Toutes les catégories</option>
+              {% for cat in categories %}
+              <option value="{{ cat }}" {% if request.args.get('category')==cat %}selected{% endif %}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Niveau</label>
+            <select name="level" class="input-secel" style="height:40px;font-size:.85rem">
+              <option value="">Tous les niveaux</option>
+              <option {% if request.args.get('level')=='Débutant' %}selected{% endif %}>Débutant</option>
+              <option {% if request.args.get('level')=='Intermédiaire' %}selected{% endif %}>Intermédiaire</option>
+              <option {% if request.args.get('level')=='Avancé' %}selected{% endif %}>Avancé</option>
+              <option {% if request.args.get('level')=='Expert' %}selected{% endif %}>Expert</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Type</label>
+            <div class="filter-type-btns">
+              <label class="filter-type-opt {% if not request.args.get('type') %}active{% endif %}">
+                <input type="radio" name="type" value="" {% if not request.args.get('type') %}checked{% endif %} class="d-none"/> Tous
+              </label>
+              <label class="filter-type-opt {% if request.args.get('type')=='video' %}active{% endif %}">
+                <input type="radio" name="type" value="video" {% if request.args.get('type')=='video' %}checked{% endif %} class="d-none"/>
+                <i class="fas fa-film me-1"></i>Vidéo
+              </label>
+              <label class="filter-type-opt {% if request.args.get('type')=='ebook' %}active{% endif %}">
+                <input type="radio" name="type" value="ebook" {% if request.args.get('type')=='ebook' %}checked{% endif %} class="d-none"/>
+                <i class="fas fa-book-open me-1"></i>eBook
+              </label>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Prix</label>
+            <div class="filter-type-btns">
+              <label class="filter-type-opt {% if not request.args.get('free') %}active{% endif %}">
+                <input type="radio" name="free" value="" {% if not request.args.get('free') %}checked{% endif %} class="d-none"/> Tous
+              </label>
+              <label class="filter-type-opt {% if request.args.get('free')=='1' %}active{% endif %}">
+                <input type="radio" name="free" value="1" {% if request.args.get('free')=='1' %}checked{% endif %} class="d-none"/>
+                <i class="fas fa-gift me-1"></i>Gratuit
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-secel-gold w-100 mt-2" style="height:40px;font-size:.875rem">
+            <i class="fas fa-search me-2"></i>Appliquer
+          </button>
+          <a href="{{ url_for('courses') }}" class="filter-reset-link">
+            <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+          </a>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Course Grid ── -->
+    <div class="col-lg-9">
+      <div class="courses-toolbar mb-4">
+        <span style="font-size:.92rem; font-weight:600; color:#1e293b;">
+          <span style="
+            background: linear-gradient(135deg,rgba(37,99,235,.18),rgba(37,99,235,.08));
+            border: 1px solid rgba(37,99,235,.35);
+            color: #2563eb;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size:.88rem;
+            font-weight:700;
+            margin-right:6px;
+          ">{{ courses|length }}</span>
+          formation{{ 's' if courses|length != 1 }} trouvée{{ 's' if courses|length != 1 }}
+        </span>
+        <div class="sort-options">
+          <span class="text-muted small">Trier par :</span>
+          <a href="?{{ request.query_string.decode().replace('sort=newest','').replace('sort=popular','') }}&sort=newest"
+             class="sort-btn {% if request.args.get('sort','newest')=='newest' %}active{% endif %}">Récents</a>
+          <a href="?{{ request.query_string.decode().replace('sort=newest','').replace('sort=popular','') }}&sort=popular"
+             class="sort-btn {% if request.args.get('sort')=='popular' %}active{% endif %}">Populaires</a>
+        </div>
+      </div>
+
+      {% if courses %}
+      <div class="row g-4">
+        {% for course in courses %}
+        <div class="col-sm-6 col-xl-4 position-relative">
+          {% if current_user.is_authenticated and (
+               current_user.role == 'admin' or
+               (current_user.role == 'teacher' and course.teacher_id == current_user.id)
+             ) %}
+          <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}"
+                class="ccv2-delete-form"
+                onsubmit="return confirm('⚠️ Supprimer « {{ course.title[:40] }} » ? Cette action est irréversible.')">
+            <button type="submit" class="ccv2-delete-btn" title="Supprimer ce cours">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+          {% endif %}
+          <a href="{{ url_for('course_detail', course_id=course.id) }}" class="course-card-link">
+            <article class="course-card-v2">
+
+              <!-- Thumbnail -->
+              <div class="ccv2-thumb">
+                {% if course.course_type == 'ebook' and course.ebook_cover %}
+                  <div class="ccv2-img" style="background-image:url('{{ url_for('static', filename=course.ebook_cover) }}')"></div>
+                {% elif course.thumbnail and (course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://')) %}
+                  <div class="ccv2-img" style="background-image:url('{{ course.thumbnail }}')"></div>
+                {% elif course.thumbnail %}
+                  <div class="ccv2-img" style="background-image:url('{{ url_for('static', filename='uploads/' + course.thumbnail) }}')"></div>
+                {% else %}
+                  <div class="ccv2-img ccv2-img-default" style="background-image:url('https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=400&h=220&fit=crop&sig={{ loop.index }}')"></div>
+                {% endif %}
+
+                <!-- Play overlay -->
+                <div class="ccv2-overlay">
+                  <div class="ccv2-play-btn">
+                    {% if course.course_type == 'ebook' %}
+                      <i class="fas fa-book-open"></i>
+                    {% else %}
+                      <i class="fas fa-play"></i>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Type badge -->
+                <div class="ccv2-type-badge ccv2-type-{{ course.course_type or 'video' }}">
+                  {% if course.course_type == 'ebook' %}
+                    <i class="fas fa-book-open me-1"></i>eBook
+                  {% else %}
+                    <i class="fas fa-film me-1"></i>Vidéo
+                  {% endif %}
+                </div>
+
+                <!-- Level badge -->
+                <div class="ccv2-level-badge">{{ course.level or 'Débutant' }}</div>
+              </div>
+
+              <!-- Body -->
+              <div class="ccv2-body">
+                <div class="ccv2-category">{{ course.category or 'Formation' }}</div>
+                <h3 class="ccv2-title">{{ course.title }}</h3>
+                <p class="ccv2-desc">{{ (course.description or '')[:90] }}{% if (course.description or '')|length > 90 %}…{% endif %}</p>
+
+                <div class="ccv2-meta">
+                  <div class="ccv2-teacher">
+                    <div class="ccv2-teacher-avatar">{{ (course.teacher.full_name or course.teacher.username)[0].upper() }}</div>
+                    <span>{{ course.teacher.full_name or course.teacher.username }}</span>
+                  </div>
+                  <div class="ccv2-stats">
+                    {% if course.course_type == 'ebook' %}
+                      <span><i class="fas fa-file-pdf me-1"></i>PDF</span>
+                    {% else %}
+                      <span><i class="fas fa-play me-1"></i>{{ course.videos.count() }} vidéo{{ 's' if course.videos.count() != 1 }}</span>
+                    {% endif %}
+                    <span><i class="fas fa-users me-1"></i>{{ course.enrollments.count() }}</span>
+                  </div>
+                </div>
+
+                <div class="ccv2-footer">
+                  <div class="ccv2-price">
+                    {% if course.is_free %}
+                      <span class="price-free"><i class="fas fa-gift me-1"></i>Gratuit</span>
+                    {% else %}
+                      <span class="price-paid">{{ course.price|int }} {{ course.currency }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="ccv2-cta">Voir <i class="fas fa-arrow-right ms-1"></i></div>
+                </div>
+              </div>
+
+            </article>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      <div class="courses-empty">
+        <div class="courses-empty-icon"><i class="fas fa-search"></i></div>
+        <h4>Aucune formation trouvée</h4>
+        <p class="text-muted">Essayez d'autres critères de recherche ou réinitialisez les filtres.</p>
+        <a href="{{ url_for('courses') }}" class="btn-secel-gold">
+          <i class="fas fa-list me-2"></i>Voir toutes les formations
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<style>
+/* ── Course card delete button ─────────────── */
+.ccv2-delete-form {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+}
+.ccv2-delete-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: rgba(248,81,73,.15); border: 1px solid rgba(248,81,73,.35);
+  color: #f85149; display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; cursor: pointer; transition: all .2s;
+  backdrop-filter: blur(6px);
+}
+.ccv2-delete-btn:hover {
+  background: rgba(248,81,73,.35); border-color: #f85149;
+  transform: scale(1.1);
+}
+
+/* ── Header ──────────────────────────────────── */
+.course-list-header {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border-bottom: 1px solid var(--border); padding: 48px 0 36px;
+  text-align: center;
+}
+.clh-content { max-width: 600px; margin: 0 auto; }
+.clh-badge {
+  display: inline-flex; align-items: center;
+  background: rgba(37,99,235,.1); border: 1px solid rgba(37,99,235,.25);
+  padding: 5px 14px; border-radius: 20px; font-size: .8rem; color: var(--gold);
+  margin-bottom: 14px;
+}
+.clh-title { font-size: clamp(1.6rem,4vw,2.4rem); font-weight: 800; margin-bottom: 10px; }
+.clh-sub { color: var(--text-muted); font-size: .9rem; }
+
+/* ── Filter Sidebar ──────────────────────────── */
+.filter-sidebar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden; position: sticky; top: 80px;
+}
+.filter-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  background: var(--surface2); font-weight: 700; font-size: .9rem;
+}
+.filter-body { padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.filter-group { margin-bottom: 14px; }
+.filter-label {
+  display: block; font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted); margin-bottom: 7px;
+}
+.filter-type-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-type-opt {
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 5px 12px;
+  font-size: .78rem; cursor: pointer; transition: all .15s; color: var(--text-muted);
+  display: inline-flex; align-items: center;
+}
+.filter-type-opt.active, .filter-type-opt:has(input:checked) {
+  border-color: var(--gold); color: var(--gold); background: rgba(37,99,235,.1);
+}
+.filter-type-opt:hover:not(.active) { border-color: rgba(37,99,235,.4); }
+.filter-reset-link {
+  display: block; text-align: center; color: var(--text-muted); font-size: .78rem;
+  margin-top: 10px; text-decoration: none; transition: color .15s;
+}
+.filter-reset-link:hover { color: var(--gold); }
+
+/* ── Toolbar ─────────────────────────────────── */
+.courses-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.sort-options { display: flex; align-items: center; gap: 6px; }
+.sort-btn {
+  padding: 4px 10px; border-radius: 6px; font-size: .78rem; text-decoration: none;
+  color: var(--text-muted); border: 1px solid var(--border); transition: all .15s;
+}
+.sort-btn.active, .sort-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(37,99,235,.08); }
+
+/* ── Course Card v2 ──────────────────────────── */
+.course-card-link { text-decoration: none; color: inherit; display: block; }
+.course-card-v2 {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden; transition: all .25s; height: 100%;
+  display: flex; flex-direction: column;
+}
+.course-card-v2:hover {
+  border-color: var(--gold); transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.12), 0 0 0 1px rgba(37,99,235,.15);
+}
+
+/* Thumbnail */
+.ccv2-thumb { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+.ccv2-img {
+  width: 100%; height: 100%;
+  background-size: cover; background-position: center;
+  transition: transform .4s ease;
+}
+.course-card-v2:hover .ccv2-img { transform: scale(1.06); }
+.ccv2-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .25s;
+}
+.course-card-v2:hover .ccv2-overlay { background: rgba(0,0,0,.4); }
+.ccv2-play-btn {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--gold); color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; opacity: 0; transform: scale(.7); transition: all .25s;
+}
+.course-card-v2:hover .ccv2-play-btn { opacity: 1; transform: scale(1); }
+
+/* Badges on thumbnail */
+.ccv2-type-badge, .ccv2-level-badge {
+  position: absolute; font-size: .68rem; font-weight: 700; padding: 3px 9px;
+  border-radius: 20px; backdrop-filter: blur(6px);
+}
+.ccv2-type-badge {
+  top: 10px; left: 10px;
+}
+.ccv2-type-video { background: rgba(37,99,235,.9); color: #fff; }
+.ccv2-type-ebook { background: rgba(99,179,237,.9); color: #000; }
+.ccv2-level-badge {
+  top: 10px; right: 10px;
+  background: rgba(255,255,255,.9); color: #1e293b; border: 1px solid rgba(0,0,0,.1);
+}
+
+/* Card body */
+.ccv2-body { padding: 16px; display: flex; flex-direction: column; flex: 1; gap: 8px; }
+.ccv2-category { font-size: .7rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .6px; }
+.ccv2-title { font-size: .97rem; font-weight: 700; line-height: 1.4; margin: 0; color: var(--text-primary); }
+.ccv2-desc { font-size: .82rem; color: var(--text-muted); line-height: 1.5; margin: 0; flex: 1; }
+
+.ccv2-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ccv2-teacher { display: flex; align-items: center; gap: 7px; font-size: .78rem; color: var(--text-muted); }
+.ccv2-teacher-avatar {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--gold);
+  color: #fff; font-weight: 700; font-size: .7rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ccv2-stats { display: flex; gap: 10px; font-size: .75rem; color: var(--text-muted); }
+
+.ccv2-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px;
+}
+.price-free { color: #3fb950; font-weight: 700; font-size: .85rem; }
+.price-paid { color: var(--gold); font-weight: 700; font-size: .9rem; }
+.ccv2-cta {
+  font-size: .8rem; font-weight: 700; color: var(--gold);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* ── Empty State ─────────────────────────────── */
+.courses-empty {
+  text-align: center; padding: 80px 40px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+}
+.courses-empty-icon {
+  width: 72px; height: 72px; border-radius: 50%; background: var(--surface2);
+  margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; color: var(--text-muted);
+}
+.courses-empty h4 { margin-bottom: 8px; font-size: 1.1rem; }
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 992px) {
+  .filter-sidebar { position: static; margin-bottom: 20px; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Make filter radio buttons highlight immediately on click
+document.querySelectorAll('.filter-type-opt').forEach(label => {
+  label.addEventListener('click', function() {
+    const group = this.closest('.filter-type-btns');
+    group.querySelectorAll('.filter-type-opt').forEach(l => l.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Animate cards on load with stagger
+document.querySelectorAll('.course-card-v2').forEach((card, i) => {
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(24px)';
+  setTimeout(() => {
+    card.style.transition = 'opacity .45s ease, transform .45s ease';
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, i * 70);
+});
+</script>
+{% endblock %}

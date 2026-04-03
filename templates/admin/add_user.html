@@ -1,0 +1,225 @@
+{% extends 'admin/admin_base.html' %}
+{% block title %}Ajouter Utilisateur — SECEL Admin{% endblock %}
+{% block page_title %}<i class="fas fa-user-plus me-2"></i>Ajouter un Utilisateur{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-xl-7">
+
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h6><i class="fas fa-user-plus me-2 text-warning"></i>Nouveau compte utilisateur</h6>
+      </div>
+      <div class="admin-card-body">
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for cat, msg in messages %}
+          <div class="flash-alert flash-{{ cat }} mb-3">
+            <i class="fas fa-info-circle me-2"></i>{{ msg }}
+            <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+          </div>
+          {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('admin_add_user') }}" novalidate>
+
+          <!-- Role selection -->
+          <div class="admin-form-group">
+            <label class="admin-form-label">Rôle <span style="color:#f85149">*</span></label>
+            <select name="role" class="admin-form-control" id="roleSelect" onchange="toggleRoleFields(this.value)">
+              <option value="student" {% if request.form.get('role','student')=='student' %}selected{% endif %}>Étudiant</option>
+              <option value="teacher" {% if request.form.get('role')=='teacher' %}selected{% endif %}>Enseignant</option>
+              <option value="admin"   {% if request.form.get('role')=='admin' %}selected{% endif %}>Administrateur</option>
+            </select>
+          </div>
+
+          <!-- Basic info -->
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">Nom complet <span style="color:#f85149">*</span></label>
+                <input type="text" name="full_name" class="admin-form-control"
+                       placeholder="Jean-Paul Mukendi" required
+                       value="{{ request.form.get('full_name','') }}"/>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">Nom d'utilisateur <span style="color:#f85149">*</span></label>
+                <input type="text" name="username" class="admin-form-control"
+                       placeholder="jean_paul" required
+                       value="{{ request.form.get('username','') }}"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">E-mail <span style="color:#f85149">*</span></label>
+                <input type="email" name="email" class="admin-form-control"
+                       placeholder="email@example.com" required
+                       value="{{ request.form.get('email','') }}"/>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">Téléphone</label>
+                <input type="text" name="phone" class="admin-form-control"
+                       placeholder="+243 XXX XXX XXX"
+                       value="{{ request.form.get('phone','') }}"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student-specific fields -->
+          <div id="studentFields">
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <div class="admin-form-group">
+                  <label class="admin-form-label">Niveau (étudiant)</label>
+                  <select name="student_level" class="admin-form-control">
+                    <option value="">-- Choisir --</option>
+                    <option value="Débutant"      {% if request.form.get('student_level')=='Débutant' %}selected{% endif %}>Débutant</option>
+                    <option value="Intermédiaire" {% if request.form.get('student_level')=='Intermédiaire' %}selected{% endif %}>Intermédiaire</option>
+                    <option value="Avancé"        {% if request.form.get('student_level')=='Avancé' %}selected{% endif %}>Avancé</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="admin-form-group">
+                  <label class="admin-form-label">Objectifs d'apprentissage</label>
+                  <input type="text" name="learning_goals" class="admin-form-control"
+                         placeholder="Devenir développeur web…"
+                         value="{{ request.form.get('learning_goals','') }}"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Teacher-specific fields -->
+          <div id="teacherFields" style="display:none">
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <div class="admin-form-group">
+                  <label class="admin-form-label">Spécialité</label>
+                  <input type="text" name="specialty" class="admin-form-control"
+                         placeholder="Python, IA, Cybersécurité…"
+                         value="{{ request.form.get('specialty','') }}"/>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="admin-form-group">
+                  <label class="admin-form-label">Années d'expérience</label>
+                  <input type="number" name="years_experience" class="admin-form-control"
+                         placeholder="5" min="0" max="50"
+                         value="{{ request.form.get('years_experience','') }}"/>
+                </div>
+              </div>
+            </div>
+            <div class="admin-form-group mb-3">
+              <label class="admin-form-label">Qualifications / Diplômes</label>
+              <textarea name="qualifications" class="admin-form-control" rows="2"
+                        placeholder="MSc Informatique | Certifié AWS…">{{ request.form.get('qualifications','') }}</textarea>
+            </div>
+            <div class="admin-form-group mb-3">
+              <label class="admin-form-label">Portfolio URL</label>
+              <input type="url" name="portfolio_url" class="admin-form-control"
+                     placeholder="https://portfolio.example.com"
+                     value="{{ request.form.get('portfolio_url','') }}"/>
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="row g-3 mb-3">
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">Mot de passe <span style="color:#f85149">*</span></label>
+                <div style="position:relative">
+                  <input type="password" name="password" id="pw1" class="admin-form-control"
+                         placeholder="••••••••" required minlength="8"
+                         style="padding-right:40px"/>
+                  <button type="button" onclick="toggleAdminPw('pw1',this)"
+                          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--admin-muted);cursor:pointer">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="admin-form-group">
+                <label class="admin-form-label">Confirmer <span style="color:#f85149">*</span></label>
+                <div style="position:relative">
+                  <input type="password" name="confirm_password" id="pw2" class="admin-form-control"
+                         placeholder="••••••••" required minlength="8"
+                         style="padding-right:40px"/>
+                  <button type="button" onclick="toggleAdminPw('pw2',this)"
+                          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--admin-muted);cursor:pointer">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active toggle -->
+          <div class="admin-form-group mb-4">
+            <label class="admin-form-label">Statut du compte</label>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+              <input type="checkbox" name="is_active" id="isActive"
+                     {% if request.form.get('is_active', 'on') == 'on' %}checked{% endif %}
+                     style="width:16px;height:16px;accent-color:var(--admin-gold)"/>
+              <label for="isActive" style="font-size:.875rem;color:var(--admin-muted);margin:0">
+                Compte actif (l'utilisateur peut se connecter immédiatement)
+              </label>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="d-flex gap-3">
+            <button type="submit" class="btn-admin btn-admin-primary">
+              <i class="fas fa-user-plus me-2"></i>Créer l'utilisateur
+            </button>
+            <a href="{{ url_for('admin_users') }}" class="btn-admin btn-admin-outline">
+              <i class="fas fa-arrow-left me-2"></i>Retour
+            </a>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRoleFields(role) {
+  const sf = document.getElementById('studentFields');
+  const tf = document.getElementById('teacherFields');
+  if (role === 'student') { sf.style.display = ''; tf.style.display = 'none'; }
+  else if (role === 'teacher') { sf.style.display = 'none'; tf.style.display = ''; }
+  else { sf.style.display = 'none'; tf.style.display = 'none'; }
+}
+
+function toggleAdminPw(id, btn) {
+  const inp  = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  if (inp.type === 'password') {
+    inp.type = 'text'; icon.className = 'fas fa-eye-slash';
+  } else {
+    inp.type = 'password'; icon.className = 'fas fa-eye';
+  }
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+  const sel = document.getElementById('roleSelect');
+  if (sel) toggleRoleFields(sel.value);
+});
+</script>
+{% endblock %}

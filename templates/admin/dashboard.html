@@ -1,0 +1,923 @@
+{% extends 'admin/admin_base.html' %}
+{% block title %}Dashboard Admin — SECEL{% endblock %}
+{% block page_title %}<i class="fas fa-chart-pie me-2"></i>Tableau de Bord{% endblock %}
+
+{% block content %}
+
+<!-- ── Live indicator ── -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <p class="text-muted small mb-0">Données mises à jour automatiquement toutes les 30 secondes.</p>
+  <div class="live-dot-wrap">
+    <span class="live-dot"></span>
+    <span class="text-muted small ms-2" id="lastUpdated">—</span>
+  </div>
+</div>
+
+<!-- ── KPI Row ── -->
+<div class="kpi-grid mb-4" id="kpiRow">
+
+  <div class="dash-kpi kpi-gold">
+    <div class="dash-kpi-icon"><i class="fas fa-users"></i></div>
+    <div class="dash-kpi-body">
+      <div class="dash-kpi-num" id="kpiUsers">{{ total_users }}</div>
+      <div class="dash-kpi-lbl">Utilisateurs</div>
+      <div class="dash-kpi-sub" id="kpiUsersSub">
+        <span id="kpiStudents">{{ total_students }}</span> ét. ·
+        <span id="kpiTeachers">{{ total_teachers }}</span> ens.
+      </div>
+    </div>
+    <div class="dash-kpi-trend"><i class="fas fa-graduation-cap"></i></div>
+  </div>
+
+  <div class="dash-kpi kpi-teal">
+    <div class="dash-kpi-icon"><i class="fas fa-user-check"></i></div>
+    <div class="dash-kpi-body">
+      <div class="dash-kpi-num" id="kpiEnrollments">{{ total_enrollments }}</div>
+      <div class="dash-kpi-lbl">Inscrits</div>
+      <div class="dash-kpi-sub" id="kpiEnrollmentsSub">
+        {{ total_courses }} cours disponibles
+      </div>
+    </div>
+    <div class="dash-kpi-trend"><i class="fas fa-id-card"></i></div>
+  </div>
+
+  <div class="dash-kpi kpi-blue">
+    <div class="dash-kpi-icon"><i class="fas fa-book-open"></i></div>
+    <div class="dash-kpi-body">
+      <div class="dash-kpi-num" id="kpiCourses">{{ total_courses }}</div>
+      <div class="dash-kpi-lbl">Cours Total</div>
+      <div class="dash-kpi-sub" id="kpiCoursesSub">
+        <span id="kpiPublished">{{ courses_published }}</span> pub. ·
+        <span id="kpiCoursePending">{{ courses_pending }}</span> att.
+      </div>
+    </div>
+    <div class="dash-kpi-trend"><i class="fas fa-layer-group"></i></div>
+  </div>
+
+  <div class="dash-kpi {% if pending_count > 0 %}kpi-red{% else %}kpi-green{% endif %}" id="kpiPendingCard">
+    <div class="dash-kpi-icon"><i class="fas fa-clock"></i></div>
+    <div class="dash-kpi-body">
+      <div class="dash-kpi-num" id="kpiPending">{{ pending_count }}</div>
+      <div class="dash-kpi-lbl">En Attente</div>
+      <div class="dash-kpi-sub" id="kpiPendingSub">
+        {% if pending_count > 0 %}⚠ Validation requise{% else %}✓ Tout validé{% endif %}
+      </div>
+    </div>
+    <div class="dash-kpi-trend"><i class="fas fa-hourglass-half"></i></div>
+  </div>
+
+  <div class="dash-kpi kpi-purple">
+    <div class="dash-kpi-icon">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#0074FA"/>
+        <path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/>
+      </svg>
+    </div>
+    <div class="dash-kpi-body">
+      <div class="dash-kpi-num kpi-num-sm" id="kpiRevenue">{{ '{:,.0f}'.format(pay_stats.revenue_xaf) }}</div>
+      <div class="dash-kpi-lbl">Revenus XAF</div>
+      <div class="dash-kpi-sub" id="kpiRevenueSub">{{ pay_stats.successful }} paiements</div>
+    </div>
+    <div class="dash-kpi-trend"><i class="fas fa-chart-line"></i></div>
+  </div>
+
+</div>
+
+<!-- ── Payment mini-stats ── -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <h6 class="d-flex align-items-center gap-2">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+            <path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#0074FA"/>
+            <path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/>
+          </svg>
+          Paiements Moneroo — Synthèse
+        </h6>
+        <span class="live-chip"><span class="live-dot-sm"></span>Live</span>
+      </div>
+      <div class="dash-card-body">
+        <div class="row g-3">
+          <div class="col-4 text-center">
+            <div class="pay-mini-stat pay-success">
+              <div class="pay-mini-num" id="psSuccess">{{ pay_stats.successful }}</div>
+              <div class="pay-mini-lbl"><i class="fas fa-check-circle me-1"></i>Réussis</div>
+            </div>
+          </div>
+          <div class="col-4 text-center">
+            <div class="pay-mini-stat pay-pending">
+              <div class="pay-mini-num" id="psPending">{{ pay_stats.pending }}</div>
+              <div class="pay-mini-lbl"><i class="fas fa-clock me-1"></i>En attente</div>
+            </div>
+          </div>
+          <div class="col-4 text-center">
+            <div class="pay-mini-stat pay-failed">
+              <div class="pay-mini-num" id="psFailed">{{ pay_stats.failed }}</div>
+              <div class="pay-mini-lbl"><i class="fas fa-times-circle me-1"></i>Échoués</div>
+            </div>
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div class="pay-progress-wrap mt-3" id="payProgressWrap">
+          {% set total_pay = pay_stats.successful + pay_stats.pending + pay_stats.failed %}
+          {% if total_pay > 0 %}
+          <div class="pay-progress-bar">
+            <div class="ppb-success" style="width:{{ (pay_stats.successful/total_pay*100)|int }}%"></div>
+            <div class="ppb-pending" style="width:{{ (pay_stats.pending/total_pay*100)|int }}%"></div>
+            <div class="ppb-failed"  style="width:{{ (pay_stats.failed/total_pay*100)|int }}%"></div>
+          </div>
+          {% else %}
+          <div class="pay-progress-bar"><div class="ppb-success" style="width:100%;opacity:.15"></div></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts Row ── -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <h6><i class="fas fa-chart-line me-2" style="color:#2563eb"></i>Activité (7 derniers jours)</h6>
+        <span class="live-chip"><span class="live-dot-sm"></span>Live</span>
+      </div>
+      <div class="dash-card-body"><canvas id="chartRegistrations" height="100"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="dash-card h-100">
+      <div class="dash-card-header">
+        <h6><i class="fas fa-chart-pie me-2" style="color:#7c3aed"></i>Répartition Utilisateurs</h6>
+      </div>
+      <div class="dash-card-body d-flex flex-column align-items-center justify-content-center">
+        <canvas id="chartRoles" style="max-height:180px"></canvas>
+        <div class="donut-legend mt-3" id="donutLegend">
+          <div class="donut-legend-item"><span class="legend-dot" style="background:#2563eb"></span>Étudiants (<span id="lgStudents">{{ total_students }}</span>)</div>
+          <div class="donut-legend-item"><span class="legend-dot" style="background:#58a6ff"></span>Enseignants (<span id="lgTeachers">{{ total_teachers }}</span>)</div>
+          <div class="donut-legend-item"><span class="legend-dot" style="background:#3fb950"></span>Admins (<span id="lgAdmins">{{ role_data[2] }}</span>)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Second Charts Row ── -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <h6><i class="fas fa-chart-bar me-2" style="color:#0d9488"></i>Inscriptions Cours (7j)</h6>
+      </div>
+      <div class="dash-card-body"><canvas id="chartEnrollments" height="140"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="dash-card">
+      <div class="dash-card-header">
+        <h6><i class="fas fa-layer-group me-2" style="color:#16a34a"></i>Cours par Catégorie</h6>
+      </div>
+      <div class="dash-card-body"><canvas id="chartCategories" height="140"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal rejet vidéo ── -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;">
+      <div class="modal-header" style="border-color:#e2e8f0;">
+        <h6 class="modal-title fw-bold text-danger">
+          <i class="fas fa-times-circle me-2"></i>Rejeter la vidéo
+        </h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2" style="font-size:.85rem;color:#64748b;">
+          <i class="fas fa-film me-1" style="color:#2563eb;"></i>
+          <span id="rejectVideoTitle" class="fw-semibold" style="color:#1e293b;"></span>
+        </div>
+        <div class="mb-3" style="font-size:.8rem;color:#94a3b8;" id="rejectVideoMeta"></div>
+        <label class="form-label small text-muted mb-1">Raison du refus <span class="text-danger">*</span></label>
+        <textarea id="rejectReason" rows="3" class="form-control"
+          style="background:#f8fafc;border-color:#e2e8f0;color:#1e293b;border-radius:10px;font-size:.85rem;"
+          placeholder="Ex: Mauvaise qualité audio, contenu hors-sujet, vidéo trop courte…"></textarea>
+        <div class="form-text mt-1" style="font-size:.73rem;">L'enseignant recevra cette raison par notification.</div>
+      </div>
+      <div class="modal-footer" style="border-color:#e2e8f0;">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button class="btn btn-sm btn-danger fw-bold" id="confirmRejectBtn">
+          <i class="fas fa-times me-1"></i>Confirmer le rejet
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pending Videos + Recent Payments ── -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="dash-card">
+      <div class="dash-card-header d-flex justify-content-between align-items-center">
+        <h6><i class="fas fa-hourglass-half me-2" style="color:#f59e0b"></i>Vidéos en attente</h6>
+        <span class="pv-badge {% if pending_count == 0 %}pv-badge-ok{% endif %}" id="pendingBadge">
+          {% if pending_count > 0 %}
+            <i class="fas fa-exclamation-circle me-1"></i>{{ pending_count }} à valider
+          {% else %}
+            <i class="fas fa-check-circle me-1"></i>Tout validé
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="dash-card-body p-0" id="pendingList">
+        {% for video in pending_vids %}
+        <div class="pv-item" id="pvItem{{ video.id }}">
+
+          <!-- Icône type -->
+          <div class="pv-icon {% if video.is_local %}pv-icon-local{% else %}pv-icon-online{% endif %}">
+            <i class="fas {% if video.is_local %}fa-hdd{% else %}fa-play-circle{% endif %}"></i>
+          </div>
+
+          <!-- Infos -->
+          <div class="pv-body">
+            <div class="pv-title" title="{{ video.title }}">{{ video.title }}</div>
+            <div class="pv-meta">
+              <span class="pv-tag {% if video.is_local %}pv-tag-local{% else %}pv-tag-online{% endif %}">
+                {{ 'Local' if video.is_local else 'En ligne' }}
+              </span>
+              <span>{{ video.course.title[:28] if video.course else '—' }}</span>
+              {% if video.course and video.course.teacher %}
+              · <span>{{ video.course.teacher.full_name or video.course.teacher.username }}</span>
+              {% endif %}
+              {% if video.upload_date %}
+              · <span class="pv-date">{{ video.upload_date.strftime('%d/%m/%Y') }}</span>
+              {% endif %}
+              {% if video.duration_seconds %}
+              · <span><i class="fas fa-clock" style="font-size:.65rem;"></i> {{ video.duration_seconds // 60 }}min</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="pv-actions">
+            <button class="pv-btn pv-btn-approve" onclick="approveVideo({{ video.id }}, this)"
+                    title="Approuver">
+              <i class="fas fa-check"></i>
+            </button>
+            <button class="pv-btn pv-btn-reject"
+                    onclick="openRejectModal({{ video.id }}, '{{ video.title|replace("'","\\'") }}', '{{ (video.course.title[:28] if video.course else '') |replace("'","\\'") }}')"
+                    title="Rejeter">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+        </div>
+        {% else %}
+        <div class="pv-empty" id="pvEmpty">
+          <i class="fas fa-check-circle"></i>
+          <p>Aucune vidéo en attente d'approbation</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="dash-card">
+      <div class="dash-card-header d-flex justify-content-between">
+        <h6><i class="fas fa-credit-card me-2" style="color:#2563eb"></i>Paiements Récents</h6>
+        <a href="{{ url_for('admin_payments') }}" class="small" style="color:#2563eb">Voir tout →</a>
+      </div>
+      <div class="dash-card-body p-0" id="recentPaymentsContainer">
+        {% for p in recent_payments %}
+        <div class="pay-row">
+          <div class="pay-row-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#0074FA"/>
+              <path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/>
+            </svg>
+          </div>
+          <div class="flex-grow-1 overflow-hidden" style="min-width:0">
+            <div style="font-size:.83rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ p.user.full_name or p.user.username if p.user else '—' }}
+            </div>
+            <div style="font-size:.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">
+              {{ (p.course.title[:22] if p.course else '—') }} · {{ p.created_at.strftime('%d/%m/%Y') if p.created_at else '—' }}
+            </div>
+          </div>
+          <div class="text-end flex-shrink-0" style="margin-left:10px">
+            <div style="font-size:.84rem;font-weight:700;color:#2563eb">
+              {{ '{:,.0f}'.format(p.amount|int) }} {{ p.currency }}
+            </div>
+            <span class="pay-status-badge status-{{ p.status }}">{{ p.status }}</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state text-center py-5">
+          <i class="fas fa-receipt fa-2x mb-3 d-block" style="opacity:.2"></i>
+          <p class="text-muted mb-0 small">Aucun paiement</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recent Courses Table ── -->
+<div class="dash-card mb-4">
+  <div class="dash-card-header d-flex justify-content-between align-items-center">
+    <h6><i class="fas fa-book-open me-2" style="color:#2563eb"></i>Cours Récents</h6>
+    <input type="text" class="input-secel input-sm" style="max-width:220px"
+           placeholder="Rechercher…" oninput="filterAdminTable(this,'courseTable')"/>
+  </div>
+  <div class="dash-card-body p-0">
+    <div class="table-responsive">
+      <table class="admin-table" id="courseTable">
+        <thead>
+          <tr>
+            <th>Titre</th><th>Enseignant</th><th>Catégorie</th>
+            <th>Vidéos</th><th>Étudiants</th><th>Prix</th><th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in recent_courses %}
+          <tr>
+            <td class="fw-semibold">{{ c.title[:35] }}</td>
+            <td>{{ c.teacher.full_name or c.teacher.username }}</td>
+            <td><span class="tag-badge">{{ c.category or '—' }}</span></td>
+            <td>{{ c.videos.count() }}</td>
+            <td>{{ c.enrollments.count() }}</td>
+            <td>
+              {% if c.is_free %}
+                <span class="badge bg-success">Gratuit</span>
+              {% else %}
+                <span class="fw-bold" style="color:#2563eb">{{ c.price|int }} {{ c.currency }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="status-badge {% if c.is_published %}status-active{% else %}status-inactive{% endif %}">
+                {{ 'Publié' if c.is_published else 'Brouillon' }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Live indicator ── */
+.live-dot-wrap { display:flex; align-items:center; }
+.live-dot {
+  width:9px; height:9px; border-radius:50%;
+  background:#3fb950; display:inline-block;
+  box-shadow:0 0 0 0 rgba(63,185,80,.5);
+  animation:pulse-live 2s infinite;
+}
+.live-dot-sm {
+  width:7px; height:7px; border-radius:50%;
+  background:#3fb950; display:inline-block;
+  animation:pulse-live 2s infinite;
+}
+.live-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  background:rgba(63,185,80,.1); border:1px solid rgba(63,185,80,.25);
+  color:#3fb950; font-size:.72rem; padding:2px 8px; border-radius:12px;
+}
+@keyframes pulse-live {
+  0%,100% { box-shadow:0 0 0 0 rgba(63,185,80,.5); }
+  50%      { box-shadow:0 0 0 5px rgba(63,185,80,0); }
+}
+
+/* ── KPI Grid — 5 colonnes égales ─────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+@media (max-width: 1199px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 767px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 479px)  { .kpi-grid { grid-template-columns: 1fr; } }
+
+/* ── KPI Cards ─────────────────────────────────────────────── */
+.dash-kpi {
+  /* Hauteur fixe identique pour toutes les cartes */
+  height: 116px;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(226,232,240,.9);
+  position: relative;
+  overflow: hidden;
+  transition: transform .22s ease, box-shadow .22s ease;
+  /* Empêche tout dépassement de contenu */
+  box-sizing: border-box;
+}
+.dash-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(0,0,0,.10);
+}
+
+/* Couleurs */
+.kpi-gold   { background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(37,99,235,.04));  border-color:rgba(37,99,235,.22); }
+.kpi-blue   { background:linear-gradient(135deg,rgba(88,166,255,.14),rgba(88,166,255,.04)); border-color:rgba(88,166,255,.22); }
+.kpi-red    { background:linear-gradient(135deg,rgba(248,81,73,.14),rgba(248,81,73,.04));   border-color:rgba(248,81,73,.22); }
+.kpi-green  { background:linear-gradient(135deg,rgba(63,185,80,.14),rgba(63,185,80,.04));   border-color:rgba(63,185,80,.22); }
+.kpi-purple { background:linear-gradient(135deg,rgba(108,71,255,.18),rgba(108,71,255,.06)); border-color:rgba(108,71,255,.32); }
+.kpi-teal   { background:linear-gradient(135deg,rgba(20,184,166,.14),rgba(20,184,166,.04)); border-color:rgba(20,184,166,.26); }
+
+/* Icône — taille fixe, ne se rétrécit jamais */
+.dash-kpi-icon {
+  width: 46px; height: 46px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+.kpi-gold   .dash-kpi-icon { background:rgba(37,99,235,.18);  color:#2563eb; }
+.kpi-blue   .dash-kpi-icon { background:rgba(88,166,255,.18);  color:#58a6ff; }
+.kpi-red    .dash-kpi-icon { background:rgba(248,81,73,.18);   color:#f85149; }
+.kpi-green  .dash-kpi-icon { background:rgba(63,185,80,.18);   color:#3fb950; }
+.kpi-purple .dash-kpi-icon { background:rgba(108,71,255,.22);  color:#bc8cff; }
+.kpi-teal   .dash-kpi-icon { background:rgba(20,184,166,.18);  color:#14b8a6; }
+
+/* Corps — prend tout l'espace restant sans déborder */
+.dash-kpi-body {
+  flex: 1;
+  min-width: 0;        /* crucial : permet à flex-item de rétrécir sous son contenu */
+  overflow: hidden;
+}
+
+/* Nombre — adaptatif selon la longueur */
+.dash-kpi-num {
+  font-size: clamp(1.15rem, 2.6vw, 2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: font-size .15s ease;
+}
+/* Variante "petit" pour les montants XAF longs */
+.dash-kpi-num.kpi-num-sm {
+  font-size: clamp(.95rem, 2vw, 1.55rem);
+}
+
+/* Label — une seule ligne, majuscule */
+.dash-kpi-lbl {
+  font-size: .72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sous-titre — une seule ligne */
+.dash-kpi-sub {
+  font-size: .7rem;
+  color: #94a3b8;
+  margin-top: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Icône décorative en arrière-plan */
+.dash-kpi-trend {
+  position: absolute; right: 12px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 2.4rem;
+  opacity: .055;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Dash card ── */
+.dash-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; overflow:hidden;
+}
+.dash-card-header {
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  background:var(--surface2); display:flex; align-items:center; justify-content:space-between;
+}
+.dash-card-header h6 { margin:0; font-size:.875rem; font-weight:700; }
+.dash-card-body { padding:18px; }
+
+/* ── Payment mini stats ── */
+.pay-mini-stat { padding:16px 10px; border-radius:10px; }
+.pay-success { background:rgba(63,185,80,.08); border:1px solid rgba(63,185,80,.2); }
+.pay-pending { background:rgba(37,99,235,.08); border:1px solid rgba(37,99,235,.2); }
+.pay-failed  { background:rgba(248,81,73,.08); border:1px solid rgba(248,81,73,.2); }
+.pay-mini-num { font-size:1.6rem; font-weight:800; }
+.pay-success .pay-mini-num { color:#3fb950; }
+.pay-pending .pay-mini-num { color:#2563eb; }
+.pay-failed  .pay-mini-num { color:#f85149; }
+.pay-mini-lbl { font-size:.72rem; color:#64748b; margin-top:4px; }
+.pay-progress-bar {
+  display:flex; height:6px; border-radius:4px; overflow:hidden;
+  background:#e2e8f0;
+}
+.ppb-success { background:#3fb950; transition:width .5s; }
+.ppb-pending { background:#2563eb; transition:width .5s; }
+.ppb-failed  { background:#f85149; transition:width .5s; }
+
+/* -- Pending Videos Badge -- */
+.pv-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:20px;
+  background:rgba(248,81,73,.15); border:1px solid rgba(248,81,73,.3); color:#f85149;
+}
+.pv-badge.pv-badge-ok {
+  background:rgba(63,185,80,.12); border-color:rgba(63,185,80,.25); color:#3fb950;
+}
+/* -- Pending Video Item -- */
+.pv-item {
+  display:flex; align-items:center; gap:13px;
+  padding:13px 18px; border-bottom:1px solid #e2e8f0;
+  overflow:hidden; transition:background .18s;
+}
+.pv-item:last-child { border-bottom:none; }
+.pv-item:hover      { background:rgba(37,99,235,.04); }
+.pv-icon {
+  width:42px; height:42px; border-radius:11px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+}
+.pv-icon-local  { background:rgba(37,99,235,.12);  color:#2563eb; border:1px solid rgba(37,99,235,.2); }
+.pv-icon-online { background:rgba(88,166,255,.12);  color:#58a6ff; border:1px solid rgba(88,166,255,.2); }
+.pv-body   { flex:1; min-width:0; }
+.pv-title  { font-size:.85rem; font-weight:700; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pv-meta   { font-size:.72rem; color:#64748b; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; gap:5px; align-items:center; }
+.pv-tag    { padding:1px 7px; border-radius:10px; font-size:.65rem; font-weight:700; flex-shrink:0; }
+.pv-tag-local  { background:rgba(37,99,235,.15);  color:#2563eb; }
+.pv-tag-online { background:rgba(88,166,255,.15);  color:#58a6ff; }
+.pv-date   { color:#94a3b8; }
+.pv-actions { display:flex; gap:6px; flex-shrink:0; }
+.pv-btn {
+  width:34px; height:34px; border-radius:9px; border:none;
+  display:flex; align-items:center; justify-content:center;
+  font-size:.85rem; cursor:pointer; transition:all .18s;
+}
+.pv-btn-approve { background:rgba(63,185,80,.12);  color:#3fb950; border:1px solid rgba(63,185,80,.3); }
+.pv-btn-approve:hover    { background:rgba(63,185,80,.28); transform:scale(1.08); }
+.pv-btn-approve:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.pv-btn-reject  { background:rgba(248,81,73,.12);  color:#f85149; border:1px solid rgba(248,81,73,.3); }
+.pv-btn-reject:hover     { background:rgba(248,81,73,.28); transform:scale(1.08); }
+@keyframes pvFadeOut {
+  0%  { opacity:1; max-height:80px; padding:13px 18px; }
+  60% { opacity:0; max-height:80px; }
+  100%{ opacity:0; max-height:0;   padding:0 18px; }
+}
+.pv-item.removing { animation:pvFadeOut .38s ease forwards; pointer-events:none; }
+.pv-empty {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:40px 20px; color:#3fb950; text-align:center;
+}
+.pv-empty i { font-size:2rem; opacity:.5; margin-bottom:10px; display:block; }
+.pv-empty p { font-size:.82rem; color:#6e7681; margin:0; }
+.badge-sm { font-size:.65rem; }
+
+/* ── Recent Payments Rows ────────────────────────────────── */
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background .15s;
+}
+.pay-row:last-child { border-bottom: none; }
+.pay-row:hover { background: rgba(37,99,235,.03); }
+
+.pay-row-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+
+.pay-status-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 20px;
+  font-size: .68rem; font-weight: 700;
+  text-transform: capitalize; letter-spacing: .2px;
+}
+.pay-status-badge.status-success  { background: rgba(22,163,74,.12);  color: #16a34a; border: 1px solid rgba(22,163,74,.25); }
+.pay-status-badge.status-failed   { background: rgba(220,38,38,.10);  color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
+.pay-status-badge.status-pending  { background: rgba(245,158,11,.12); color: #d97706; border: 1px solid rgba(245,158,11,.25); }
+.pay-status-badge.status-cancelled{ background: rgba(148,163,184,.12);color: #64748b; border: 1px solid rgba(148,163,184,.25); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Vidéos en attente — AJAX Approve / Reject ─────────────────────────── */
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+function _removePvItem(videoId, callback) {
+  var el = document.getElementById('pvItem' + videoId);
+  if (!el) return;
+  el.classList.add('removing');
+  setTimeout(function() {
+    el.remove();
+    // Mettre à jour le compteur
+    var remaining = document.querySelectorAll('.pv-item').length;
+    var badge = document.getElementById('pendingBadge');
+    var kpiEl = document.getElementById('kpiPending');
+    if (badge) {
+      if (remaining === 0) {
+        badge.innerHTML = '<i class="fas fa-check-circle me-1"></i>Tout valid\u00e9';
+        badge.classList.add('pv-badge-ok');
+        // Afficher l'état vide
+        var list = document.getElementById('pendingList');
+        if (list && !list.querySelector('.pv-empty')) {
+          list.innerHTML = '<div class="pv-empty"><i class="fas fa-check-circle"></i><p>Aucune vid\u00e9o en attente d\'approbation</p></div>';
+        }
+      } else {
+        badge.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + remaining + ' \u00e0 valider';
+        badge.classList.remove('pv-badge-ok');
+      }
+    }
+    if (kpiEl) kpiEl.textContent = remaining;
+    var kpiCard = document.getElementById('kpiPendingCard');
+    if (kpiCard) {
+      kpiCard.className = 'dash-kpi ' + (remaining > 0 ? 'kpi-red' : 'kpi-green');
+    }
+    if (callback) callback();
+  }, 420);
+}
+
+function approveVideo(videoId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  fetch('/admin/video/' + videoId + '/approve', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN, 'Content-Type': 'application/json' }
+  })
+  .then(function(r) {
+    if (r.ok || r.redirected) {
+      _removePvItem(videoId);
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i>';
+      alert('Erreur lors de l\'approbation.');
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i>';
+    alert('Erreur réseau.');
+  });
+}
+
+// État du modal rejet
+var _rejectVideoId = null;
+
+function openRejectModal(videoId, title, courseName) {
+  _rejectVideoId = videoId;
+  document.getElementById('rejectVideoTitle').textContent = title;
+  document.getElementById('rejectVideoMeta').textContent = courseName ? 'Cours : ' + courseName : '';
+  document.getElementById('rejectReason').value = '';
+  new bootstrap.Modal(document.getElementById('rejectModal')).show();
+}
+
+document.getElementById('confirmRejectBtn').addEventListener('click', function() {
+  var reason = document.getElementById('rejectReason').value.trim();
+  if (!reason) {
+    document.getElementById('rejectReason').style.borderColor = '#f85149';
+    document.getElementById('rejectReason').focus();
+    return;
+  }
+  document.getElementById('rejectReason').style.borderColor = '';
+
+  var btn = this;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Rejet...';
+
+  var formData = new FormData();
+  formData.append('reason', reason);
+  formData.append('csrf_token', CSRF_TOKEN);
+
+  fetch('/admin/video/' + _rejectVideoId + '/reject', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': CSRF_TOKEN },
+    body: formData
+  })
+  .then(function(r) {
+    bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times me-1"></i>Confirmer le rejet';
+    if (r.ok || r.redirected) {
+      _removePvItem(_rejectVideoId);
+    } else {
+      alert('Erreur lors du rejet.');
+    }
+  })
+  .catch(function() {
+    bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-times me-1"></i>Confirmer le rejet';
+    alert('Erreur réseau.');
+  });
+});
+
+/* ── KPI : auto-resize des grands nombres ────────────────────────────────── */
+(function adaptKpiNumbers() {
+  document.querySelectorAll('.dash-kpi-num').forEach(function(el) {
+    var len = (el.textContent || '').trim().replace(/\s/g,'').length;
+    // Adapter selon le nombre de chiffres
+    if (len >= 10)      el.style.fontSize = '.88rem';
+    else if (len >= 8)  el.style.fontSize = '1rem';
+    else if (len >= 6)  el.style.fontSize = '1.2rem';
+    else if (len >= 4)  el.style.fontSize = '1.5rem';
+    else                el.style.fontSize = '';   // laisser le CSS clamp() gérer
+  });
+})();
+
+// ── Chart defaults ──────────────────────────────────────────
+Chart.defaults.color = '#64748b';
+const G = 'rgba(226,232,240,0.8)';
+
+const regChart = new Chart(document.getElementById('chartRegistrations'), {
+  type: 'line',
+  data: {
+    labels: {{ reg_labels | tojson }},
+    datasets: [
+      { label: 'Nouveaux utilisateurs', data: {{ reg_data | tojson }},
+        borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,0.10)',
+        pointBackgroundColor:'#2563eb', pointRadius:5, tension:0.4, fill:true },
+      { label: 'Inscriptions cours', data: {{ enroll_data_7 | tojson }},
+        borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,0.08)',
+        pointBackgroundColor:'#58a6ff', pointRadius:5, tension:0.4, fill:true }
+    ]
+  },
+  options: { responsive:true,
+    plugins: { legend:{ position:'top', labels:{ boxWidth:12, font:{ size:11 } } } },
+    scales: {
+      x: { grid:{ color:G }, ticks:{ color:'#64748b', font:{ size:11 } } },
+      y: { grid:{ color:G }, ticks:{ color:'#64748b', stepSize:1, font:{ size:11 } }, beginAtZero:true }
+    }
+  }
+});
+
+const roleChart = new Chart(document.getElementById('chartRoles'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Étudiants','Enseignants','Admins'],
+    datasets: [{ data: {{ role_data | tojson }},
+      backgroundColor:['#2563eb','#60a5fa','#16a34a'],
+      borderColor:'#ffffff', borderWidth:3 }]
+  },
+  options: { cutout:'68%', plugins:{ legend:{ display:false } } }
+});
+
+const enrollChart = new Chart(document.getElementById('chartEnrollments'), {
+  type: 'bar',
+  data: {
+    labels: {{ enroll_labels | tojson }},
+    datasets: [{ label:'Inscriptions', data: {{ enroll_data_7 | tojson }},
+      backgroundColor:'rgba(37,99,235,0.75)', borderColor:'#2563eb',
+      borderWidth:1, borderRadius:5 }]
+  },
+  options: { responsive:true, plugins:{ legend:{ display:false } },
+    scales: {
+      x: { grid:{ color:G }, ticks:{ color:'#64748b', font:{ size:11 } } },
+      y: { grid:{ color:G }, ticks:{ color:'#64748b', stepSize:1, font:{ size:11 } }, beginAtZero:true }
+    }
+  }
+});
+
+new Chart(document.getElementById('chartCategories'), {
+  type: 'doughnut',
+  data: {
+    labels: {{ cat_labels | tojson }},
+    datasets: [{ data: {{ cat_data | tojson }},
+      backgroundColor:['#2563eb','#60a5fa','#16a34a','#dc2626','#7c3aed','#0d9488','#f59e0b','#10b981'],
+      borderColor:'#ffffff', borderWidth:2 }]
+  },
+  options: { cutout:'50%',
+    plugins:{ legend:{ position:'right', labels:{ font:{ size:11 }, color:'#64748b', boxWidth:12 } } }
+  }
+});
+
+// ── Table filter ────────────────────────────────────────────
+function filterAdminTable(input, tid) {
+  const f = input.value.toLowerCase();
+  document.getElementById(tid)?.querySelectorAll('tbody tr').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(f) ? '' : 'none';
+  });
+}
+
+// ── Real-time polling ────────────────────────────────────────
+function fmtNum(n) {
+  return Number(n).toLocaleString('fr-FR');
+}
+
+function updateRecentPayments(list) {
+  const container = document.getElementById('recentPaymentsContainer');
+  if (!container || !list.length) return;
+  container.innerHTML = list.map(p => `
+    <div class="pay-row">
+      <div class="pay-row-icon">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#0074FA"/><path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/></svg>
+      </div>
+      <div class="flex-grow-1 min-w-0 overflow-hidden">
+        <div style="font-size:.83rem;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.user}</div>
+        <div style="font-size:.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${p.course} · ${p.date}</div>
+      </div>
+      <div class="text-end flex-shrink-0" style="margin-left:10px">
+        <div style="font-size:.84rem;font-weight:700;color:#2563eb">${fmtNum(p.amount)} ${p.currency}</div>
+        <span class="pay-status-badge status-${p.status}" style="margin-top:3px;display:inline-flex">${p.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function updatePayProgress(s, p, f) {
+  const total = s + p + f;
+  if (!total) return;
+  const wrap = document.querySelector('.pay-progress-bar');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="ppb-success" style="width:${(s/total*100).toFixed(1)}%"></div>
+    <div class="ppb-pending" style="width:${(p/total*100).toFixed(1)}%"></div>
+    <div class="ppb-failed"  style="width:${(f/total*100).toFixed(1)}%"></div>`;
+}
+
+async function fetchLiveStats() {
+  try {
+    const res = await fetch('/api/admin/stats');
+    if (!res.ok) return;
+    const d = await res.json();
+
+    // KPIs — utilisateurs réels
+    document.getElementById('kpiUsers').textContent    = fmtNum(d.total_users);
+    document.getElementById('kpiStudents').textContent = d.total_students;
+    document.getElementById('kpiTeachers').textContent = d.total_teachers;
+
+    // KPI — inscriptions réelles
+    document.getElementById('kpiEnrollments').textContent    = fmtNum(d.total_enrollments);
+    document.getElementById('kpiEnrollmentsSub').textContent = `${d.total_courses} cours disponibles`;
+
+    // KPIs — cours réels (total, pas seulement publiés)
+    document.getElementById('kpiCourses').textContent       = fmtNum(d.total_courses);
+    document.getElementById('kpiPublished').textContent     = d.courses_published;
+    document.getElementById('kpiCoursePending').textContent = d.courses_pending;
+
+    document.getElementById('kpiPending').textContent  = d.pending_videos + d.courses_pending;
+    document.getElementById('kpiRevenue').textContent  = fmtNum(d.revenue_xaf);
+    document.getElementById('kpiRevenueSub').textContent = `${d.successful_payments} paiements réussis`;
+
+    // Payment mini-stats
+    document.getElementById('psSuccess').textContent = d.successful_payments;
+    document.getElementById('psPending').textContent = d.pending_payments;
+    document.getElementById('psFailed').textContent  = d.failed_payments;
+    updatePayProgress(d.successful_payments, d.pending_payments, d.failed_payments);
+
+    // Donut legend
+    document.getElementById('lgStudents').textContent = d.total_students;
+    document.getElementById('lgTeachers').textContent = d.total_teachers;
+    document.getElementById('lgAdmins').textContent   = d.role_data[2];
+    roleChart.data.datasets[0].data = d.role_data;
+    roleChart.update('none');
+
+    // Line charts
+    regChart.data.labels = d.reg_labels;
+    regChart.data.datasets[0].data = d.reg_data;
+    regChart.data.datasets[1].data = d.enroll_data;
+    regChart.update('none');
+
+    enrollChart.data.labels = d.enroll_labels;
+    enrollChart.data.datasets[0].data = d.enroll_data;
+    enrollChart.update('none');
+
+    // Recent payments
+    updateRecentPayments(d.recent_payments);
+
+    // Timestamp
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      'Mis à jour à ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+  } catch(e) { console.warn('Stats fetch error', e); }
+}
+
+// Initial fetch + every 30 s
+fetchLiveStats();
+setInterval(fetchLiveStats, 30000);
+</script>
+{% endblock %}

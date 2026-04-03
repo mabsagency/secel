@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Connexion — SECEL{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-split">
+
+    <!-- Left: Image Panel (Black student studying) -->
+    <div class="auth-image-panel d-none d-lg-flex">
+      <div class="auth-img-bg" style="background-image: url('https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=900&h=1100&fit=crop');"></div>
+      <div class="auth-img-overlay"></div>
+      <div class="auth-img-content">
+        <!-- Mini Logo -->
+        <a href="{{ url_for('index') }}" class="auth-logo-link">
+          <svg viewBox="0 0 180 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:44px">
+            <rect width="180" height="46" rx="8" fill="rgba(0,0,0,0.6)"/>
+            <g transform="translate(8,6)">
+              <polygon points="16,4 29,11 16,18 3,11" fill="#60a5fa"/>
+              <path d="M8 13 Q8 21 16 23 Q24 21 24 13" fill="#60a5fa" opacity="0.85"/>
+              <line x1="3" y1="11" x2="3" y2="21" stroke="#60a5fa" stroke-width="1.5"/>
+              <circle cx="3" cy="23" r="2" fill="#60a5fa"/>
+            </g>
+            <text x="44" y="29" font-family="Poppins" font-size="18" font-weight="800" fill="#60a5fa" letter-spacing="1.5">SECEL</text>
+            <text x="45" y="40" font-family="Inter" font-size="6.5" fill="#aabbcc">EXCELLENCE · FORMATION · AVENIR</text>
+          </svg>
+        </a>
+        <div class="auth-img-text">
+          <h2>"L'éducation est l'arme la plus puissante que vous puissiez utiliser pour changer le monde."</h2>
+          <p class="auth-quote-author">— Nelson Mandela</p>
+        </div>
+        <div class="auth-img-stats">
+          <div class="auth-stat"><span class="auth-stat-num">500+</span><span class="auth-stat-label">Étudiants</span></div>
+          <div class="auth-stat"><span class="auth-stat-num">50+</span><span class="auth-stat-label">Cours</span></div>
+          <div class="auth-stat"><span class="auth-stat-num">20+</span><span class="auth-stat-label">Enseignants</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Login Form -->
+    <div class="auth-form-panel">
+      <div class="auth-form-inner">
+        <div class="auth-back mb-3">
+          <a href="{{ url_for('index') }}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i> Retour à l'accueil
+          </a>
+        </div>
+
+        <h2 class="auth-form-title">Bon retour !</h2>
+        <p class="auth-form-sub">Connectez-vous à votre espace SECEL</p>
+
+        <!-- Social Login -->
+        <div class="social-login-btns d-flex gap-3 mb-4">
+          <a href="{{ url_for('auth_google') }}" class="social-login-btn flex-1" style="text-decoration:none;">
+            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Google
+          </a>
+          <a href="{{ url_for('auth_linkedin') }}" class="social-login-btn flex-1" style="text-decoration:none;">
+            <i class="fab fa-linkedin-in" style="color:#0A66C2"></i> LinkedIn
+          </a>
+        </div>
+
+        <div class="auth-divider"><span>ou par email</span></div>
+
+        <form method="POST" action="{{ url_for('login') }}" class="auth-form mt-4">
+          <div class="form-group-secel mb-4">
+            <label class="form-label-secel">Adresse Email</label>
+            <div class="input-icon-wrap">
+              <i class="fas fa-envelope input-icon"></i>
+              <input type="email" name="email" class="input-secel" placeholder="votre@email.com" required autocomplete="email"/>
+            </div>
+          </div>
+
+          <div class="form-group-secel mb-4">
+            <div class="d-flex justify-content-between">
+              <label class="form-label-secel">Mot de passe</label>
+              <a href="#" class="auth-forgot">Oublié ?</a>
+            </div>
+            <div class="input-icon-wrap">
+              <i class="fas fa-lock input-icon"></i>
+              <input type="password" name="password" id="passwordInput" class="input-secel" placeholder="••••••••" required autocomplete="current-password"/>
+              <button type="button" class="input-icon-right toggle-password" onclick="togglePwd('passwordInput', this)">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <label class="checkbox-secel">
+              <input type="checkbox" name="remember"/>
+              <span class="checkmark"></span>
+              Se souvenir de moi
+            </label>
+          </div>
+
+          <button type="submit" class="btn-auth-submit w-100">
+            <i class="fas fa-sign-in-alt me-2"></i> Se connecter
+          </button>
+        </form>
+
+        <p class="auth-switch-text mt-4">
+          Pas encore de compte ?
+          <a href="{{ url_for('register') }}" class="text-warning fw-semibold">Créer un compte</a>
+        </p>
+
+        {# ⚠️  SÉCURITÉ : Les identifiants admin ont été supprimés du HTML public.
+               Consultez run.py ou la documentation interne. #}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePwd(id, btn) {
+  const inp = document.getElementById(id);
+  const ico = btn.querySelector('i');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.classList.replace('fa-eye', 'fa-eye-slash');
+  } else {
+    inp.type = 'password';
+    ico.classList.replace('fa-eye-slash', 'fa-eye');
+  }
+}
+</script>
+{% endblock %}

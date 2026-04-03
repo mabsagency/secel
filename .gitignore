@@ -1,0 +1,33 @@
+# ── Environnement Python ──────────────────────────────────────
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Variables d'environnement (SECRETS — ne jamais committer) ─
+.env
+.env.*
+!.env.example
+
+# ── Base de données locale ────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Uploads (fichiers utilisateurs) ──────────────────────────
+uploads/
+static/uploads/
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

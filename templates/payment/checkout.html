@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block title %}Paiement — {{ course.title[:40] }} — SECEL{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:960px">
+  <div class="row g-4">
+
+    <!-- LEFT: Checkout Moneroo -->
+    <div class="col-lg-7">
+      <div class="checkout-card">
+
+        <!-- Header -->
+        <div class="checkout-header">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <!-- Vrai logo Moneroo -->
+            <img src="{{ url_for('static', filename='img/moneroo.png') }}"
+                 style="width:56px;height:56px;border-radius:14px;flex-shrink:0;box-shadow:0 4px 16px rgba(0,0,0,.15);object-fit:contain;background:#fff;"
+                 alt="Moneroo"/>
+            <div>
+              <h2 class="checkout-title"><i class="fas fa-lock me-2 text-gold"></i>Paiement sécurisé</h2>
+              <p class="checkout-sub mb-0">Via <strong style="color:#1B65E5;">Moneroo</strong> — Mobile Money, Cartes &amp; plus</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Récapitulatif montant -->
+        <div class="amount-recap">
+          <div class="ar-label">Montant à payer</div>
+          <div class="ar-amount">{{ '%.0f'|format(course.price) }} <span class="ar-currency">{{ course.currency }}</span></div>
+          <div class="ar-course">{{ course.title[:60] }}</div>
+        </div>
+
+        <!-- Info Moneroo -->
+        <div class="moneroo-info-box">
+          <i class="fas fa-shield-alt me-2" style="color:#6c47ff;"></i>
+          <span>Vous serez redirigé vers la page sécurisée <strong>Moneroo</strong> pour choisir votre méthode de paiement (Orange Money, MTN MoMo, Wave, carte bancaire…)</span>
+        </div>
+
+        <!-- Méthodes disponibles -->
+        <div class="methods-preview">
+          <div class="mp-label">Méthodes acceptées</div>
+          <div class="mp-logos">
+            <!-- Orange Money -->
+            <div class="mp-pill mp-om">
+              <img src="{{ url_for('static', filename='img/OM.png') }}" alt="Orange Money" class="mp-pill-img"/>
+              <span>OM</span>
+            </div>
+            <!-- MTN Mobile Money -->
+            <div class="mp-pill mp-mtn">
+              <img src="{{ url_for('static', filename='img/MTN.png') }}" alt="MTN MoMo" class="mp-pill-img"/>
+              <span>MTN</span>
+            </div>
+            <!-- Wave -->
+            <div class="mp-pill mp-wave">
+              <img src="{{ url_for('static', filename='img/wave.png') }}" alt="Wave" class="mp-pill-img"/>
+              <span>Wave</span>
+            </div>
+            <!-- Carte Bancaire -->
+            <div class="mp-pill mp-cb">
+              <i class="fas fa-credit-card mp-pill-icon"></i>
+              <span>CB</span>
+            </div>
+            <!-- Autres -->
+            <div class="mp-pill mp-autres">
+              <span>+ autres</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bouton principal -->
+        <form action="{{ url_for('payment_initiate', course_id=course.id) }}" method="POST"
+              onsubmit="startLoading()">
+          <button type="submit" class="btn-pay-moneroo" id="payBtn">
+            <span id="payBtnContent">
+              <i class="fas fa-lock me-2"></i>
+              Payer <strong>{{ '%.0f'|format(course.price) }} {{ course.currency }}</strong> avec Moneroo
+              <i class="fas fa-arrow-right ms-2"></i>
+            </span>
+            <span id="payBtnLoading" style="display:none;">
+              <i class="fas fa-spinner fa-spin me-2"></i>Redirection vers Moneroo…
+            </span>
+          </button>
+        </form>
+
+        <p class="cancel-link">
+          <a href="{{ url_for('course_detail', course_id=course.id) }}" class="text-muted">
+            <i class="fas fa-arrow-left me-1"></i>Annuler et retourner au cours
+          </a>
+        </p>
+
+        <!-- Garanties sécurité -->
+        <div class="security-badges">
+          <div class="sb-item"><i class="fas fa-lock text-gold me-1"></i>SSL 256-bit</div>
+          <div class="sb-item"><i class="fas fa-shield-alt text-gold me-1"></i>Paiement sécurisé</div>
+          <div class="sb-item"><i class="fas fa-undo text-gold me-1"></i>Accès immédiat</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: Order Summary -->
+    <div class="col-lg-5">
+      <div class="order-summary-card">
+        <div class="os-header">
+          <h5><i class="fas fa-receipt me-2 text-gold"></i>Récapitulatif</h5>
+        </div>
+
+        <!-- Course thumbnail / ebook cover -->
+        <div class="os-course-thumb {{ 'os-thumb-ebook' if course.course_type == 'ebook' else '' }}">
+          {# ebook_cover stocké 'uploads/fname' ; thumbnail stocké 'fname' seulement #}
+          {% if course.course_type == 'ebook' and course.ebook_cover %}
+            {% set src = course.ebook_cover if (course.ebook_cover.startswith('http://') or course.ebook_cover.startswith('https://')) else url_for('static', filename=course.ebook_cover) %}
+            <img src="{{ src }}" alt="{{ course.title }}" class="os-thumb-img os-thumb-contain"/>
+          {% elif course.thumbnail %}
+            {% set src = course.thumbnail if (course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://')) else url_for('static', filename='uploads/' + course.thumbnail) %}
+            <img src="{{ src }}" alt="{{ course.title }}" class="os-thumb-img"/>
+          {% else %}
+            <div class="os-thumb-placeholder">
+              <i class="fas {{ 'fa-file-pdf' if course.course_type == 'ebook' else 'fa-book-open' }}"></i>
+            </div>
+          {% endif %}
+          <!-- overlay gradient bas -->
+          <div class="os-thumb-overlay"></div>
+        </div>
+
+        <div class="os-course-info">
+          <h6 class="os-title">{{ course.title }}</h6>
+          <div class="os-meta">
+            <span><i class="fas fa-user me-1 text-gold"></i>{{ course.teacher.full_name or course.teacher.username }}</span>
+            {% if course.course_type == 'ebook' %}
+              <span><i class="fas fa-file-pdf me-1 text-gold"></i>eBook PDF</span>
+              <span><i class="fas fa-download me-1 text-gold"></i>Téléchargement inclus</span>
+            {% else %}
+              <span><i class="fas fa-film me-1 text-gold"></i>{{ course.total_videos }} vidéos</span>
+              <span><i class="fas fa-clock me-1 text-gold"></i>{{ course.duration_hours }}h de contenu</span>
+            {% endif %}
+            <span><i class="fas fa-layer-group me-1 text-gold"></i>{{ course.level }}</span>
+          </div>
+        </div>
+
+        <div class="os-divider"></div>
+
+        <div class="os-price-row">
+          <span>{% if course.course_type == 'ebook' %}Prix de l'eBook{% else %}Prix de la formation{% endif %}</span>
+          <span class="text-gold fw-bold">{{ '%.0f'|format(course.price) }} {{ course.currency }}</span>
+        </div>
+        <div class="os-price-row os-price-total">
+          <span>Total</span>
+          <span class="text-gold fw-bold" style="font-size:1.2rem">{{ '%.0f'|format(course.price) }} {{ course.currency }}</span>
+        </div>
+
+        <div class="os-badges mt-3">
+          <div class="os-badge"><i class="fas fa-infinity me-1 text-gold"></i>Accès à vie</div>
+          {% if course.course_type == 'ebook' %}
+            <div class="os-badge"><i class="fas fa-mobile-alt me-1 text-gold"></i>Lecture sur tous appareils</div>
+            <div class="os-badge"><i class="fas fa-download me-1 text-gold"></i>Téléchargement PDF illimité</div>
+          {% else %}
+            <div class="os-badge"><i class="fas fa-mobile-alt me-1 text-gold"></i>Tous opérateurs acceptés</div>
+            <div class="os-badge"><i class="fas fa-certificate me-1 text-gold"></i>Certificat inclus</div>
+          {% endif %}
+        </div>
+
+        <!-- Powered by Moneroo -->
+        <div class="powered-by">
+          <i class="fas fa-lock" style="color:#6c47ff;font-size:.7rem;"></i>
+          <span>Paiement sécurisé par <strong style="color:#1B65E5;letter-spacing:.4px;">Moneroo</strong></span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function startLoading() {
+  document.getElementById('payBtnContent').style.display = 'none';
+  document.getElementById('payBtnLoading').style.display = 'inline-flex';
+  document.getElementById('payBtn').disabled = true;
+  document.getElementById('payBtn').style.opacity = '.8';
+}
+</script>
+<style>
+/* ── Checkout Card ─────────────────────────────────────────── */
+.checkout-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px; overflow: hidden;
+}
+.checkout-header { margin-bottom: 24px; }
+.checkout-title  { font-size: 1.3rem; font-weight: 800; margin: 0; }
+.checkout-sub    { color: var(--text-muted); font-size: .875rem; margin: 0; }
+
+/* ── Amount Recap ──────────────────────────────────────────── */
+.amount-recap {
+  background: linear-gradient(135deg, rgba(108,71,255,.12), rgba(108,71,255,.04));
+  border: 1px solid rgba(108,71,255,.25);
+  border-radius: 14px; padding: 20px 24px; margin-bottom: 20px; text-align: center;
+}
+.ar-label    { font-size: .78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.ar-amount   { font-size: 2.2rem; font-weight: 900; color: #6c47ff; line-height: 1; }
+.ar-currency { font-size: 1.1rem; font-weight: 600; }
+.ar-course   { font-size: .8rem; color: var(--text-muted); margin-top: 6px; }
+
+/* ── Moneroo Info Box ──────────────────────────────────────── */
+.moneroo-info-box {
+  background: rgba(108,71,255,.07); border: 1px solid rgba(108,71,255,.2);
+  border-radius: 10px; padding: 12px 16px; font-size: .82rem;
+  color: var(--text-secondary); margin-bottom: 18px;
+  display: flex; align-items: flex-start; gap: 4px;
+}
+
+/* ── Methods preview ───────────────────────────────────────── */
+.methods-preview { margin-bottom: 22px; }
+.mp-label { font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px; }
+.mp-logos { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Pill de base */
+.mp-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px; border-radius: 50px;
+  font-size: .75rem; font-weight: 800; letter-spacing: .3px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.22);
+  transition: transform .15s, box-shadow .15s;
+  cursor: default; user-select: none;
+}
+.mp-pill:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.mp-pill-img { width: 22px; height: 22px; object-fit: contain; border-radius: 4px; }
+.mp-pill-icon { font-size: .8rem; }
+
+/* Couleurs brand */
+.mp-om   { background: #FF7900; color: #fff; }
+.mp-mtn  { background: #FFCC00; color: #1a1a1a; }
+.mp-wave { background: #1B65E5; color: #fff; }
+.mp-cb   { background: #1e3a5f; color: #fff; }
+.mp-autres { background: rgba(255,255,255,.07); color: #888; border: 1px solid rgba(255,255,255,.12); font-weight: 600; }
+
+/* ── Pay Button ────────────────────────────────────────────── */
+.btn-pay-moneroo {
+  width: 100%; padding: 16px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #6c47ff, #9b76ff);
+  color: white; font-weight: 800; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all .2s; box-shadow: 0 4px 20px rgba(108,71,255,.35);
+  margin-bottom: 16px;
+}
+.btn-pay-moneroo:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(108,71,255,.45); }
+.btn-pay-moneroo:active { transform: translateY(0); }
+
+/* ── Cancel Link ───────────────────────────────────────────── */
+.cancel-link { text-align: center; font-size: .82rem; margin-bottom: 20px; }
+
+/* ── Security Badges ───────────────────────────────────────── */
+.security-badges {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px;
+}
+.sb-item { font-size: .75rem; color: var(--text-muted); display: flex; align-items: center; }
+
+/* ── Order Summary Card ────────────────────────────────────── */
+.order-summary-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+  position: sticky; top: 84px;
+}
+.os-header { padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.os-header h5 { margin: 0; font-size: 1rem; }
+.os-course-thumb {
+  width: 100%; height: 190px; overflow: hidden;
+  background: var(--surface2); position: relative;
+}
+.os-thumb-ebook { background: #0f0f1a; }
+.os-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.os-thumb-contain { object-fit: contain; padding: 12px; }
+.os-thumb-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 60px;
+  background: linear-gradient(to top, rgba(0,0,0,.55), transparent);
+  pointer-events: none;
+}
+.os-thumb-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center;
+  justify-content: center; color: var(--text-muted); font-size: 3rem;
+}
+.os-course-info { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.os-title { font-weight: 700; font-size: .95rem; margin-bottom: 10px; }
+.os-meta  { display: flex; flex-direction: column; gap: 6px; font-size: .8rem; color: var(--text-muted); }
+.os-divider { height: 1px; background: var(--border); margin: 0 20px; }
+.os-price-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; font-size: .875rem; color: var(--text-muted); }
+.os-price-total { border-top: 1px solid var(--border); padding-top: 14px; font-weight: 700; color: var(--text-primary); }
+.os-badges { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+.os-badge  { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--text-muted); }
+.powered-by {
+  text-align: center; padding: 14px 20px; border-top: 1px solid var(--border); margin-top: 12px;
+  font-size: .75rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+</style>
+{% endblock %}

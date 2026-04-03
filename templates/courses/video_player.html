@@ -1,0 +1,618 @@
+{% extends 'base.html' %}
+{% block title %}{{ video.title }} — SECEL{% endblock %}
+
+{% block content %}
+<div class="video-player-page">
+  <div class="container-fluid px-0">
+    <div class="vp-layout">
+
+      <!-- ═══ MAIN VIDEO AREA ═══ -->
+      <div class="vp-main">
+
+        <!-- Breadcrumb -->
+        <div class="vp-breadcrumb">
+          <a href="{{ url_for('courses') }}"><i class="fas fa-home me-1"></i>Cours</a>
+          <span>/</span>
+          <a href="{{ url_for('course_detail', course_id=video.course.id) }}">{{ video.course.title[:35] }}{% if video.course.title|length > 35 %}…{% endif %}</a>
+          <span>/</span>
+          <span class="text-gold">{{ video.title[:40] }}</span>
+        </div>
+
+        <!-- ═══ VIDEO CONTAINER ═══ -->
+        <div class="vp-container" id="vpContainer">
+
+          {# ── Detect video type and extract IDs ──────────────── #}
+          {% if video.is_local and video.file_path %}
+            {# LOCAL VIDEO — fix: file_path already contains 'uploads/' prefix #}
+            {% set ext = video.file_path.rsplit('.', 1)[-1].lower() %}
+            {% set mime_map = {'mp4':'video/mp4','webm':'video/webm','mov':'video/quicktime','avi':'video/x-msvideo','mkv':'video/x-matroska','wmv':'video/x-ms-wmv','ogg':'video/ogg'} %}
+            {% set mime_type = mime_map.get(ext, 'video/mp4') %}
+            <video
+              id="mainVideo"
+              class="vp-video"
+              controls
+              preload="metadata"
+              data-video-id="{{ video.id }}"
+              data-course-id="{{ video.course_id }}"
+              {% if progress and progress.last_position > 0 %}
+              data-last-position="{{ progress.last_position }}"
+              {% endif %}
+            >
+              <source src="{{ url_for('static', filename=video.file_path) }}" type="{{ mime_type }}"/>
+              Votre navigateur ne supporte pas la lecture vidéo HTML5.
+            </video>
+
+          {% elif video.external_url %}
+            {# EXTERNAL VIDEO #}
+            {% set url = video.external_url %}
+
+            {# ── YouTube (watch?v=, youtu.be, shorts) ── #}
+            {% if 'youtube.com' in url or 'youtu.be' in url %}
+              {# Extract video ID #}
+              {% if 'watch?v=' in url %}
+                {% set yt_vid = url.split('watch?v=')[1].split('&')[0] %}
+              {% elif 'youtu.be/' in url %}
+                {% set yt_vid = url.split('youtu.be/')[1].split('?')[0] %}
+              {% elif '/shorts/' in url %}
+                {% set yt_vid = url.split('/shorts/')[1].split('?')[0] %}
+              {% elif '/embed/' in url %}
+                {% set yt_vid = url.split('/embed/')[1].split('?')[0] %}
+              {% else %}
+                {% set yt_vid = '' %}
+              {% endif %}
+
+              {% if yt_vid %}
+              <!-- YouTube Player Container (replaced by IFrame API) -->
+              <div id="ytPlayerContainer"
+                   data-vid="{{ yt_vid }}"
+                   data-video-id="{{ video.id }}"
+                   data-course-id="{{ video.course_id }}"
+                   data-duration="{{ video.duration_seconds or 0 }}"
+                   class="vp-iframe-wrap">
+              </div>
+              {% else %}
+              <div class="vp-external-fallback">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                <p>Lien YouTube invalide.</p>
+              </div>
+              {% endif %}
+
+            {# ── Vimeo ── #}
+            {% elif 'vimeo.com' in url %}
+              {% set vimeo_id = url.rstrip('/').split('/')[-1].split('?')[0] %}
+              <div class="vp-iframe-wrap">
+                <iframe
+                  id="vimeoPlayer"
+                  src="https://player.vimeo.com/video/{{ vimeo_id }}?title=0&byline=0&portrait=0&api=1"
+                  frameborder="0"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowfullscreen
+                  data-video-id="{{ video.id }}"
+                  data-duration="{{ video.duration_seconds or 600 }}"
+                ></iframe>
+              </div>
+
+            {# ── Generic external link ── #}
+            {% else %}
+              <div class="vp-external-fallback">
+                <i class="fas fa-play-circle fa-3x"></i>
+                <p>Cette vidéo est hébergée sur une plateforme externe.</p>
+                <a href="{{ url }}" target="_blank" rel="noopener" class="btn-vp-external">
+                  <i class="fas fa-external-link-alt me-2"></i>Regarder la vidéo
+                </a>
+              </div>
+            {% endif %}
+
+          {% else %}
+            <div class="vp-no-video">
+              <i class="fas fa-video-slash fa-3x"></i>
+              <p>Cette vidéo n'est pas encore disponible.</p>
+            </div>
+          {% endif %}
+
+          <!-- Completion Overlay -->
+          <div class="vp-complete-overlay" id="completeOverlay" style="display:none">
+            <div class="vco-content">
+              <div class="vco-check"><i class="fas fa-check-circle"></i></div>
+              <h3>Vidéo terminée !</h3>
+              <p>Votre progression a été enregistrée.</p>
+              {% if next_video %}
+              <a href="{{ url_for('watch_video', video_id=next_video.id) }}" class="btn-vco-next">
+                <i class="fas fa-forward me-2"></i>Vidéo suivante : {{ next_video.title[:35] }}
+              </a>
+              {% else %}
+              <p class="text-gold fw-bold mt-2">🎉 Vous avez terminé toutes les vidéos de ce cours !</p>
+              {% endif %}
+              <button class="btn-vco-close mt-3" onclick="document.getElementById('completeOverlay').style.display='none'">
+                <i class="fas fa-times me-1"></i>Fermer
+              </button>
+            </div>
+          </div>
+
+        </div>{# /vp-container #}
+
+        <!-- Video Info Bar -->
+        <div class="vp-info">
+          <div class="vp-info-left">
+            <h1 class="vp-title">{{ video.title }}</h1>
+            <div class="vp-meta">
+              <span><i class="fas fa-book me-1 text-gold"></i>{{ video.course.title[:40] }}</span>
+              <span><i class="fas fa-user me-1 text-gold"></i>{{ video.course.teacher.full_name or video.course.teacher.username }}</span>
+              {% if video.duration_seconds %}<span><i class="fas fa-clock me-1 text-gold"></i>{{ (video.duration_seconds // 60) }} min</span>{% endif %}
+              <span><i class="fas fa-eye me-1 text-gold"></i>{{ video.watch_count }} vues</span>
+              <span class="badge {% if video.is_local %}bg-secondary{% else %}bg-danger{% endif %} ms-1" style="font-size:.7rem;">
+                <i class="fas {% if video.is_local %}fa-hdd{% else %}fab fa-youtube{% endif %} me-1"></i>
+                {{ 'Local' if video.is_local else 'YouTube' if (video.external_url and ('youtube' in video.external_url or 'youtu.be' in video.external_url)) else 'En ligne' }}
+              </span>
+            </div>
+            {% if video.description %}
+            <p class="vp-desc">{{ video.description }}</p>
+            {% endif %}
+          </div>
+
+          <!-- Progress Panel -->
+          <div class="vp-progress-panel">
+            <div class="vpp-label">Progression</div>
+            <div class="vpp-bar-wrap">
+              <div class="vpp-bar" id="vppBar"
+                   style="width:{{ (progress.watch_percentage if progress else 0)|round(0)|int }}%"></div>
+            </div>
+            <div class="vpp-pct" id="vppPct">{{ (progress.watch_percentage if progress else 0)|round(0)|int }}%</div>
+            {% if progress and progress.completed %}
+            <div class="vpp-done"><i class="fas fa-check-circle me-1"></i>Complétée ✓</div>
+            {% else %}
+            <div class="vpp-note">Validée à ≥ 90% de visionnage</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>{# /vp-main #}
+
+      <!-- ═══ SIDEBAR: Playlist ═══ -->
+      <aside class="vp-sidebar">
+        <div class="vps-header">
+          <h6><i class="fas fa-list me-2 text-gold"></i>{{ video.course.title[:28] }}{% if video.course.title|length > 28 %}…{% endif %}</h6>
+          <span class="vps-count">{{ videos|length }} vidéo{{ 's' if videos|length > 1 else '' }}</span>
+        </div>
+
+        <!-- Course progress bar -->
+        <div class="vps-course-progress">
+          <div class="vps-cp-bar">
+            <div class="vps-cp-fill" id="cpFill" style="width:{{ enrollment.progress|round(0)|int if enrollment else 0 }}%"></div>
+          </div>
+          <span id="cpLabel">{{ enrollment.progress|round(0)|int if enrollment else 0 }}% du cours complété</span>
+        </div>
+
+        <!-- Video list -->
+        <div class="vps-list">
+          {% for v in videos %}
+          <a href="{{ url_for('watch_video', video_id=v.id) }}"
+             class="vps-item {% if v.id == video.id %}vps-active{% endif %}">
+            <div class="vps-num">
+              {% set vp = video_progress_map.get(v.id) %}
+              {% if vp and vp.completed %}
+                <i class="fas fa-check-circle text-green"></i>
+              {% elif v.id == video.id %}
+                <i class="fas fa-play text-gold"></i>
+              {% else %}
+                {{ loop.index }}
+              {% endif %}
+            </div>
+            <div class="vps-item-info">
+              <div class="vps-item-title">{{ v.title[:48] }}{% if v.title|length > 48 %}…{% endif %}</div>
+              <div class="vps-item-meta d-flex align-items-center gap-2">
+                {% if v.is_local %}
+                  <span><i class="fas fa-hdd" style="font-size:.6rem;"></i> Local</span>
+                {% elif v.external_url and ('youtube' in v.external_url or 'youtu.be' in v.external_url) %}
+                  <span style="color:#ff4444;"><i class="fab fa-youtube" style="font-size:.7rem;"></i> YouTube</span>
+                {% endif %}
+                {% if v.duration_seconds %}<span>{{ (v.duration_seconds // 60) }} min</span>{% endif %}
+                {% if vp and vp.watch_percentage > 0 and not vp.completed %}
+                · <span style="color:var(--gold)">{{ vp.watch_percentage|round(0)|int }}%</span>
+                {% endif %}
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </aside>
+
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Layout ─────────────────────────────────────────── */
+.video-player-page { min-height: 100vh; background: #0d1117; }
+.vp-layout  { display: flex; min-height: calc(100vh - 70px); }
+.vp-main    { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.vp-sidebar {
+  width: 320px; flex-shrink: 0;
+  background: var(--surface); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 70px); position: sticky; top: 70px;
+}
+
+/* ── Breadcrumb ──────────────────────────────────────── */
+.vp-breadcrumb {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 20px; font-size: .8rem; color: var(--text-muted);
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.vp-breadcrumb a { color: var(--text-muted); text-decoration: none; }
+.vp-breadcrumb a:hover { color: var(--gold); }
+
+/* ── Video Container ─────────────────────────────────── */
+.vp-container {
+  position: relative; background: #000;
+  width: 100%; aspect-ratio: 16/9; max-height: 62vh;
+}
+.vp-video { width: 100%; height: 100%; display: block; background: #000; }
+.vp-iframe-wrap { position: relative; width: 100%; height: 100%; }
+.vp-iframe-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* ── Fallback states ─────────────────────────────────── */
+.vp-external-fallback,
+.vp-no-video {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--text-muted); gap: 16px; text-align: center; padding: 24px;
+}
+.btn-vp-external {
+  background: var(--gold); color: #fff; padding: 12px 28px; border-radius: 9px;
+  font-weight: 700; text-decoration: none; transition: all .2s; display: inline-flex; align-items: center;
+}
+.btn-vp-external:hover { background: #1d4ed8; color: #fff; }
+
+/* ── Completion Overlay ──────────────────────────────── */
+.vp-complete-overlay {
+  position: absolute; inset: 0; background: rgba(13,17,23,.93);
+  display: flex; align-items: center; justify-content: center; z-index: 20;
+  animation: fadeIn .4s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.vco-content { text-align: center; padding: 40px 32px; }
+.vco-check  { font-size: 4rem; color: #3fb950; margin-bottom: 16px; }
+.vco-content h3 { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; }
+.vco-content p  { color: var(--text-muted); margin-bottom: 16px; }
+.btn-vco-next {
+  background: var(--gold); color: #fff; padding: 13px 28px; border-radius: 10px;
+  font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;
+  transition: all .2s; margin-top: 8px;
+}
+.btn-vco-next:hover { background: #1d4ed8; color: #fff; }
+.btn-vco-close {
+  display: inline-block; margin-top: 12px; background: transparent;
+  border: 1px solid rgba(255,255,255,.2); color: var(--text-muted);
+  padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: .85rem; transition: all .2s;
+}
+.btn-vco-close:hover { border-color: rgba(255,255,255,.5); color: #fff; }
+
+/* ── Video Info Bar ──────────────────────────────────── */
+.vp-info {
+  display: flex; gap: 24px; padding: 18px 24px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap; background: var(--surface);
+}
+.vp-info-left { flex: 1; min-width: 0; }
+.vp-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 10px; }
+.vp-meta  { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); margin-bottom: 8px; }
+.vp-desc  { color: var(--text-muted); font-size: .875rem; line-height: 1.6; margin: 0; }
+
+/* Progress Panel */
+.vp-progress-panel {
+  min-width: 190px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; align-self: flex-start;
+}
+.vpp-label   { font-size: .7rem; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); font-weight: 700; }
+.vpp-bar-wrap { height: 7px; background: var(--border); border-radius: 10px; overflow: hidden; }
+.vpp-bar     { height: 100%; background: linear-gradient(90deg, var(--gold), #1d4ed8); border-radius: 10px; transition: width .6s ease; }
+.vpp-pct     { font-size: 1.15rem; font-weight: 800; color: var(--gold); }
+.vpp-done    { font-size: .72rem; color: #3fb950; }
+.vpp-note    { font-size: .72rem; color: var(--text-muted); }
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.vps-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface2); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.vps-header h6 { margin: 0; font-size: .875rem; }
+.vps-count     { font-size: .72rem; color: var(--text-muted); }
+.vps-course-progress {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;
+}
+.vps-cp-bar  { height: 5px; background: var(--border); border-radius: 10px; overflow: hidden; }
+.vps-cp-fill { height: 100%; background: var(--gold); border-radius: 10px; transition: width .6s ease; }
+.vps-course-progress span { font-size: .72rem; color: var(--text-muted); }
+
+.vps-list { overflow-y: auto; flex: 1; }
+.vps-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 14px; border-bottom: 1px solid rgba(48,54,61,.4);
+  text-decoration: none; color: var(--text-primary); transition: background .15s;
+}
+.vps-item:hover  { background: rgba(37,99,235,.05); color: var(--text-primary); }
+.vps-active { background: rgba(37,99,235,.1) !important; border-left: 3px solid var(--gold); }
+.vps-num {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--surface2);
+  border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700; color: var(--text-muted); flex-shrink: 0; margin-top: 2px;
+}
+.vps-item-title { font-size: .84rem; font-weight: 500; line-height: 1.4; }
+.vps-item-meta  { font-size: .7rem; color: var(--text-muted); margin-top: 3px; }
+.text-green { color: #3fb950; }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .vp-layout  { flex-direction: column; }
+  .vp-sidebar { width: 100%; max-height: 340px; position: static; border-left: none; border-top: 1px solid var(--border); }
+}
+@media (max-width: 640px) {
+  .vp-info { flex-direction: column; gap: 14px; }
+  .vp-progress-panel { min-width: 100%; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{# Load YouTube IFrame API only if needed #}
+{% if video.external_url and ('youtube.com' in video.external_url or 'youtu.be' in video.external_url) %}
+<script src="https://www.youtube.com/iframe_api"></script>
+{% endif %}
+
+<script>
+(function () {
+  'use strict';
+
+  const VIDEO_ID  = {{ video.id }};
+  const COURSE_ID = {{ video.course_id }};
+  const REPORT_INTERVAL_MS = 5000;   // report every 5 s
+  const COMPLETION_THRESHOLD = 90;   // 90 %
+
+  let lastReportedPct  = 0;
+  let completionShown  = {% if progress and progress.completed %}true{% else %}false{% endif %};
+
+  // ════════════════════════════════════════════
+  //  LOCAL VIDEO (HTML5 <video>)
+  // ════════════════════════════════════════════
+  const vid = document.getElementById('mainVideo');
+  if (vid) {
+    let reportTimer = null;
+
+    // Restore last watched position
+    vid.addEventListener('loadedmetadata', function () {
+      const lastPos = parseFloat(vid.dataset.lastPosition || 0);
+      if (lastPos > 3 && lastPos < vid.duration - 5) {
+        vid.currentTime = lastPos;
+      }
+    }, { once: true });
+
+    vid.addEventListener('play', function () {
+      clearInterval(reportTimer);
+      reportTimer = setInterval(function () { reportFromVideo(vid); }, REPORT_INTERVAL_MS);
+    });
+
+    vid.addEventListener('pause', function () {
+      clearInterval(reportTimer);
+      reportFromVideo(vid);
+    });
+
+    vid.addEventListener('ended', function () {
+      clearInterval(reportTimer);
+      reportFromVideo(vid, true);
+    });
+
+    vid.addEventListener('timeupdate', function () {
+      if (!vid.duration) return;
+      const pct = (vid.currentTime / vid.duration) * 100;
+      updateProgressUI(pct);
+      if (!completionShown && pct >= COMPLETION_THRESHOLD) {
+        completionShown = true;
+        showCompletionOverlay();
+      }
+    });
+
+    function reportFromVideo(v, force) {
+      if (!v.duration) return;
+      const pct     = (v.currentTime / v.duration) * 100;
+      const elapsed = Math.floor(v.currentTime);
+      sendProgress(pct, elapsed, Math.floor(v.duration), force || false);
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  YOUTUBE IFRAME API
+  // ════════════════════════════════════════════
+  const ytContainer = document.getElementById('ytPlayerContainer');
+  let ytPlayer    = null;
+  let ytTimer     = null;
+  let ytDuration  = 0;
+
+  if (ytContainer) {
+    const ytVid = ytContainer.dataset.vid;
+    const initDur = parseInt(ytContainer.dataset.duration || 0, 10);
+    if (initDur > 0) ytDuration = initDur;
+
+    // onYouTubeIframeAPIReady is called by the YouTube API script
+    window.onYouTubeIframeAPIReady = function () {
+      ytPlayer = new YT.Player(ytContainer, {
+        videoId: ytVid,
+        width:  '100%',
+        height: '100%',
+        playerVars: {
+          rel:            0,
+          modestbranding: 1,
+          enablejsapi:    1,
+          origin:         window.location.origin,
+        },
+        events: {
+          onReady:       onYTReady,
+          onStateChange: onYTStateChange,
+        }
+      });
+    };
+
+    function onYTReady(event) {
+      // Get real duration from player
+      const dur = event.target.getDuration();
+      if (dur > 0) ytDuration = dur;
+      // Restore position if we have saved progress
+      {% if progress and progress.last_position > 3 %}
+      event.target.seekTo({{ progress.last_position }}, true);
+      event.target.pauseVideo();
+      {% endif %}
+    }
+
+    function onYTStateChange(event) {
+      // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2, BUFFERING=3, CUED=5
+      if (event.data === YT.PlayerState.PLAYING) {
+        // Start tracking
+        clearInterval(ytTimer);
+        ytTimer = setInterval(function () { trackYT(); }, REPORT_INTERVAL_MS);
+      } else {
+        clearInterval(ytTimer);
+        // Report immediately on pause/end
+        if (ytPlayer && ytPlayer.getCurrentTime) {
+          const cur  = ytPlayer.getCurrentTime();
+          const dur  = ytPlayer.getDuration() || ytDuration || 1;
+          const pct  = (cur / dur) * 100;
+          const force = (event.data === YT.PlayerState.ENDED);
+          sendProgress(force ? 100 : pct, Math.floor(cur), Math.floor(dur), force);
+          if (force && !completionShown) {
+            completionShown = true;
+            showCompletionOverlay();
+          }
+        }
+      }
+    }
+
+    function trackYT() {
+      if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+      const cur = ytPlayer.getCurrentTime();
+      const dur = ytPlayer.getDuration() || ytDuration || 1;
+      if (dur > 0 && dur > ytDuration) ytDuration = dur;
+      const pct = (cur / dur) * 100;
+      updateProgressUI(pct);
+      sendProgress(pct, Math.floor(cur), Math.floor(dur), false);
+      if (!completionShown && pct >= COMPLETION_THRESHOLD) {
+        completionShown = true;
+        showCompletionOverlay();
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  VIMEO (via postMessage)
+  // ════════════════════════════════════════════
+  const vimeoFrame = document.getElementById('vimeoPlayer');
+  if (vimeoFrame) {
+    let vimeoTimer   = null;
+    let vimeoDur     = parseInt(vimeoFrame.dataset.duration || 600, 10);
+    let vimeoElapsed = 0;
+
+    // Ping Vimeo player to start listening
+    vimeoFrame.addEventListener('load', function () {
+      vimeoFrame.contentWindow.postMessage(JSON.stringify({ method: 'addEventListener', value: 'play' }),   '*');
+      vimeoFrame.contentWindow.postMessage(JSON.stringify({ method: 'addEventListener', value: 'pause' }),  '*');
+      vimeoFrame.contentWindow.postMessage(JSON.stringify({ method: 'addEventListener', value: 'finish' }), '*');
+      vimeoFrame.contentWindow.postMessage(JSON.stringify({ method: 'addEventListener', value: 'timeupdate' }), '*');
+    });
+
+    window.addEventListener('message', function (e) {
+      if (!e.data) return;
+      let data;
+      try { data = JSON.parse(e.data); } catch { return; }
+      if (!data.event) return;
+
+      if (data.event === 'play') {
+        vimeoTimer = setInterval(function () {
+          vimeoElapsed += REPORT_INTERVAL_MS / 1000;
+          const pct = Math.min((vimeoElapsed / vimeoDur) * 100, 100);
+          updateProgressUI(pct);
+          sendProgress(pct, vimeoElapsed, vimeoDur, false);
+        }, REPORT_INTERVAL_MS);
+      } else if (data.event === 'pause') {
+        clearInterval(vimeoTimer);
+      } else if (data.event === 'finish') {
+        clearInterval(vimeoTimer);
+        sendProgress(100, vimeoElapsed, vimeoDur, true);
+        if (!completionShown) { completionShown = true; showCompletionOverlay(); }
+      } else if (data.event === 'timeupdate' && data.data) {
+        const cur = data.data.seconds || 0;
+        const dur = data.data.duration || vimeoDur;
+        vimeoDur = dur; vimeoElapsed = cur;
+        const pct = (cur / dur) * 100;
+        updateProgressUI(pct);
+        if (!completionShown && pct >= COMPLETION_THRESHOLD) {
+          completionShown = true;
+          showCompletionOverlay();
+        }
+      }
+    });
+  }
+
+  // ════════════════════════════════════════════
+  //  SHARED UTILITIES
+  // ════════════════════════════════════════════
+  function sendProgress(pct, elapsed, duration, forceComplete) {
+    const rounded = Math.round(pct * 10) / 10;
+    // Skip tiny changes unless forced
+    if (!forceComplete && Math.abs(rounded - lastReportedPct) < 0.9) return;
+    lastReportedPct = rounded;
+
+    fetch('/api/video-progress', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        video_id:           VIDEO_ID,
+        course_id:          COURSE_ID,
+        watch_percentage:   Math.min(rounded, 100),
+        total_time_seconds: Math.floor(elapsed || 0),
+        last_position:      Math.floor(elapsed || 0),
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.course_progress !== undefined) {
+        updateCourseProgress(data.course_progress);
+      }
+    })
+    .catch(() => {});  // silent fail
+  }
+
+  function updateProgressUI(pct) {
+    const bar = document.getElementById('vppBar');
+    const num = document.getElementById('vppPct');
+    const p   = Math.min(Math.round(pct), 100);
+    if (bar) bar.style.width = p + '%';
+    if (num) num.textContent = p + '%';
+  }
+
+  function updateCourseProgress(pct) {
+    const fill = document.getElementById('cpFill');
+    const lbl  = document.getElementById('cpLabel');
+    if (fill) fill.style.width = Math.round(pct) + '%';
+    if (lbl)  lbl.textContent  = Math.round(pct) + '% du cours complété';
+  }
+
+  function showCompletionOverlay() {
+    const ov = document.getElementById('completeOverlay');
+    if (ov) {
+      ov.style.display = 'flex';
+      // Auto-hide after 10 s if no next video
+      {% if not next_video %}
+      setTimeout(function () { ov.style.display = 'none'; }, 10000);
+      {% endif %}
+    }
+  }
+
+  // Click outside to dismiss overlay
+  const overlay = document.getElementById('completeOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) overlay.style.display = 'none';
+    });
+  }
+
+})();
+</script>
+{% endblock %}

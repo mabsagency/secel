@@ -1,0 +1,613 @@
+{% extends 'base.html' %}
+{% block title %}{{ course.title }} — Formation en ligne | SECEL{% endblock %}
+
+{% block meta_description %}{{ (course.description or '') | truncate(155, True, '…') }} Cours {{ course.level }} sur SECEL — Formation en ligne RDC.{% endblock %}
+{% block meta_keywords %}{{ course.title }}, formation {{ course.category or '' }}, cours en ligne {{ course.level }}, apprendre {{ course.category or '' }} RDC, SECEL{% endblock %}
+{% block canonical %}{{ url_for('course_detail', course_id=course.id, _external=True) }}{% endblock %}
+
+{% block og_title %}{{ course.title }} — SECEL{% endblock %}
+{% block og_description %}{{ (course.description or '') | truncate(120, True, '…') }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{% if course.thumbnail %}{{ url_for('static', filename='uploads/' + course.thumbnail, _external=True) }}{% else %}{{ url_for('static', filename='img/secel-og.png', _external=True) }}{% endif %}{% endblock %}
+
+{% block twitter_title %}{{ course.title }} — SECEL{% endblock %}
+{% block twitter_desc %}{{ (course.description or '') | truncate(120, True, '…') }}{% endblock %}
+{% block twitter_image %}{% if course.thumbnail %}{{ url_for('static', filename='uploads/' + course.thumbnail, _external=True) }}{% else %}{{ url_for('static', filename='img/secel-og.png', _external=True) }}{% endif %}{% endblock %}
+
+{# ── Schema.org Course (Rich Snippet Google) ── #}
+{% block schema_org %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": {{ course.title | tojson }},
+  "description": {{ (course.description or '') | tojson }},
+  "url": "{{ url_for('course_detail', course_id=course.id, _external=True) }}",
+  "provider": {
+    "@type": "EducationalOrganization",
+    "name": "SECEL",
+    "url": "{{ request.url_root }}"
+  },
+  "instructor": {
+    "@type": "Person",
+    "name": {{ (course.teacher.full_name or course.teacher.username) | tojson }}
+  },
+  "educationalLevel": {{ course.level | tojson }},
+  "courseMode": "online",
+  "inLanguage": "fr",
+  "isAccessibleForFree": {{ "true" if course.is_free else "false" }},
+  {% if not course.is_free and course.price %}"offers": {
+    "@type": "Offer",
+    "price": "{{ course.price | int }}",
+    "priceCurrency": "{{ course.currency }}",
+    "availability": "https://schema.org/InStock"
+  },{% endif %}
+  "hasCourseInstance": {
+    "@type": "CourseInstance",
+    "courseMode": "online",
+    "instructor": { "@type": "Person", "name": {{ (course.teacher.full_name or course.teacher.username) | tojson }} }
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.7",
+    "reviewCount": "{{ course.enrollments.count() }}"
+  },
+  "numberOfCredits": "{{ videos | length }}",
+  "image": "{% if course.thumbnail %}{{ url_for('static', filename='uploads/' + course.thumbnail, _external=True) }}{% else %}{{ url_for('static', filename='img/secel-og.png', _external=True) }}{% endif %}"
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ── -->
+<div class="course-hero">
+  <div class="container">
+    <div class="row align-items-center g-4">
+
+      <!-- Left: info -->
+      <div class="col-lg-7">
+        <nav class="ch-breadcrumb mb-3">
+          <a href="{{ url_for('courses') }}">Catalogue</a>
+          <i class="fas fa-chevron-right mx-2"></i>
+          <span>{{ course.category or 'Formation' }}</span>
+        </nav>
+
+        <!-- Title row + admin/teacher delete -->
+        <div class="d-flex align-items-start gap-3 mb-3">
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+              {% if course.course_type == 'ebook' %}
+              <span class="ch-type-badge ch-type-ebook"><i class="fas fa-book-open me-1"></i>eBook</span>
+              {% else %}
+              <span class="ch-type-badge ch-type-video"><i class="fas fa-film me-1"></i>Vidéo</span>
+              {% endif %}
+              {% if not course.is_free %}
+              <span class="ch-paid-badge"><i class="fas fa-lock me-1"></i>Payant</span>
+              {% endif %}
+            </div>
+            <h1 class="ch-title">{{ course.title }}</h1>
+            <p class="ch-desc">{{ course.description or '' }}</p>
+            <div class="ch-meta">
+              <span><i class="fas fa-user-tie me-1"></i>{{ course.teacher.full_name or course.teacher.username }}</span>
+              <span><i class="fas fa-layer-group me-1"></i>{{ course.level }}</span>
+              {% if course.course_type == 'ebook' %}
+              <span><i class="fas fa-file-pdf me-1"></i>eBook PDF</span>
+              {% else %}
+              <span><i class="fas fa-play me-1"></i>{{ videos|length }} vidéo{{ 's' if videos|length > 1 }}</span>
+              {% endif %}
+              <span><i class="fas fa-users me-1"></i>{{ course.enrollments.count() }} inscrits</span>
+            </div>
+          </div>
+
+          <!-- Bouton supprimer : admin ou enseignant propriétaire UNIQUEMENT -->
+          {% if current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'teacher' and course.teacher_id == current_user.id)) %}
+          <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}"
+                onsubmit="return confirm('⚠️ Supprimer définitivement « {{ course.title[:40] }} » ?\nToutes les vidéos, inscriptions et données seront supprimées. Action irréversible.')">
+            <button type="submit" class="btn-delete-hero" title="Supprimer ce cours">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Right: enrollment card -->
+      <div class="col-lg-5">
+        <div class="enroll-card">
+
+          <!-- Thumbnail -->
+          {% if course.course_type == 'ebook' and course.ebook_cover %}
+          <div class="ec-thumb" style="background-image:url('{{ url_for('static', filename=course.ebook_cover) }}')"></div>
+          {% elif course.thumbnail and (course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://')) %}
+          <div class="ec-thumb" style="background-image:url('{{ course.thumbnail }}')"></div>
+          {% elif course.thumbnail %}
+          <div class="ec-thumb" style="background-image:url('{{ url_for('static', filename='uploads/' + course.thumbnail) }}')"></div>
+          {% else %}
+          <div class="ec-thumb ec-thumb-default"><i class="fas fa-play-circle fa-3x text-muted"></i></div>
+          {% endif %}
+
+          <div class="ec-body">
+
+            {% if current_user.is_authenticated %}
+
+              {% if is_enrolled %}
+                <!-- ✅ Déjà inscrit -->
+                <div class="ec-enrolled-badge mb-3">
+                  <i class="fas fa-check-circle me-2"></i>Vous êtes inscrit à ce cours
+                </div>
+                {% if course.course_type == 'ebook' and course.ebook_file %}
+                  <a href="{{ url_for('static', filename=course.ebook_file) }}" class="btn-enroll-main mb-2" target="_blank">
+                    <i class="fas fa-book-reader me-2"></i>Lire l'eBook
+                  </a>
+                {% elif videos %}
+                  <a href="{{ url_for('watch_video', video_id=videos[0].id) }}" class="btn-enroll-main mb-2">
+                    <i class="fas fa-play me-2"></i>Continuer le cours
+                  </a>
+                {% endif %}
+
+              {% elif current_user.role == 'admin' or (current_user.role == 'teacher' and course.teacher_id == current_user.id) %}
+                <!-- 🔑 Admin ou Enseignant propriétaire : inscription gratuite -->
+                <div class="ec-admin-badge mb-3">
+                  <i class="fas fa-shield-alt me-2"></i>
+                  {% if current_user.role == 'admin' %}Accès Admin — inscription gratuite
+                  {% else %}Votre cours — accès gratuit{% endif %}
+                </div>
+                <form action="{{ url_for('enroll', course_id=course.id) }}" method="POST">
+                  <button type="submit" class="btn-enroll-main mb-2">
+                    <i class="fas fa-graduation-cap me-2"></i>S'inscrire au cours
+                  </button>
+                </form>
+
+              {% elif not course.is_free and course.price > 0 %}
+                <!-- 💰 Cours payant : afficher le prix et le bouton Moneroo -->
+                <div class="ec-price-display mb-3">
+                  <div class="ec-price-amount">{{ course.price|int }} <span class="ec-price-currency">{{ course.currency }}</span></div>
+                  <div class="ec-price-label">Accès à vie à toutes les leçons</div>
+                </div>
+                <a href="{{ url_for('payment_checkout', course_id=course.id) }}" class="btn-pay-moneroo mb-2">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" class="moneroo-svg-icon">
+                    <path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#ffffff" opacity=".9"/>
+                    <path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/>
+                  </svg>
+                  Payer avec Moneroo
+                  <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+                <div class="ec-pay-methods mb-3">
+                  <span class="epm-item" style="color:#FF7900;"><i class="fas fa-mobile-alt me-1"></i>Orange Money</span>
+                  <span class="epm-item" style="color:#FFCC00;"><i class="fas fa-mobile-alt me-1"></i>MTN MoMo</span>
+                  <span class="epm-item"><i class="fas fa-credit-card me-1"></i>Carte</span>
+                </div>
+
+              {% else %}
+                <!-- 🆓 Cours gratuit -->
+                <form action="{{ url_for('enroll', course_id=course.id) }}" method="POST">
+                  <button type="submit" class="btn-enroll-main mb-2">
+                    <i class="fas fa-graduation-cap me-2"></i>S'inscrire gratuitement
+                  </button>
+                </form>
+              {% endif %}
+
+            {% else %}
+              <!-- Non connecté -->
+              {% if not course.is_free %}
+              <div class="ec-price-display mb-3">
+                <div class="ec-price-amount">{{ course.price|int }} <span class="ec-price-currency">{{ course.currency }}</span></div>
+              </div>
+              {% endif %}
+              <a href="{{ url_for('login') }}" class="btn-enroll-main mb-2">
+                <i class="fas fa-sign-in-alt me-2"></i>Se connecter pour accéder
+              </a>
+              <a href="{{ url_for('register') }}" class="btn-enroll-outline">
+                <i class="fas fa-user-plus me-2"></i>Créer un compte gratuit
+              </a>
+            {% endif %}
+
+            <!-- Avantages -->
+            <div class="ec-perks mt-3">
+              <div class="ec-perk"><i class="fas fa-infinity" style="color:#2563eb"></i>Accès illimité à vie</div>
+              <div class="ec-perk"><i class="fas fa-certificate" style="color:#16a34a"></i>Certificat de réussite</div>
+              <div class="ec-perk"><i class="fas fa-mobile-alt" style="color:#0ea5e9"></i>Accessible sur tous les appareils</div>
+              {% if not course.is_free %}
+              <div class="ec-perk"><i class="fas fa-shield-alt" style="color:#6c47ff;"></i>Paiement 100% sécurisé</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── Main content ── -->
+<div class="container py-5">
+  <div class="row g-4">
+    <div class="col-lg-8">
+
+      <!-- ── EBOOK MODE ── -->
+      {% if course.course_type == 'ebook' %}
+      <div class="card-secel mb-4">
+        <div class="card-secel-header"><h6><i class="fas fa-book-open me-2" style="color:#0ea5e9"></i>{{ course.title }}</h6></div>
+        <div class="card-secel-body">
+          <div class="row g-3 align-items-center">
+            {% if course.ebook_cover %}
+            <div class="col-md-4 text-center">
+              <img src="{{ url_for('static', filename=course.ebook_cover) }}" alt="Couverture"
+                   style="max-width:180px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.4);"/>
+            </div>
+            {% endif %}
+            <div class="col-md-{% if course.ebook_cover %}8{% else %}12{% endif %}">
+              <h5 class="fw-bold mb-2">{{ course.title }}</h5>
+              {% if course.description %}<p class="text-muted">{{ course.description }}</p>{% endif %}
+              <div class="d-flex gap-2 flex-wrap mt-3">
+                {% if is_enrolled and course.ebook_file %}
+                <a href="{{ url_for('static', filename=course.ebook_file) }}" class="btn-secel-gold" target="_blank">
+                  <i class="fas fa-book-reader me-2"></i>Lire l'eBook
+                </a>
+                <a href="{{ url_for('static', filename=course.ebook_file) }}" class="btn-secel-outline" download>
+                  <i class="fas fa-download me-2"></i>Télécharger
+                </a>
+                {% elif not is_enrolled %}
+                <div class="text-muted small mt-2">
+                  <i class="fas fa-lock me-2"></i>
+                  {% if not course.is_free %}Payez pour accéder à cet eBook.{% else %}Inscrivez-vous pour accéder à cet eBook.{% endif %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% if pdfs %}
+      <div class="card-secel">
+        <div class="card-secel-header"><h6><i class="fas fa-file-pdf me-2" style="color:#dc2626"></i>Ressources supplémentaires</h6></div>
+        <div class="card-secel-body">
+          {% for pdf in pdfs %}
+          <div class="pdf-list-item">
+            <i class="fas fa-file-pdf fa-2x text-danger me-3"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ pdf.title }}</div>
+              {% if pdf.description %}<div class="text-muted small">{{ pdf.description }}</div>{% endif %}
+            </div>
+            {% if is_enrolled %}
+            <a href="{{ url_for('static', filename=pdf.file_path) }}" class="btn-secel-outline btn-sm" target="_blank">
+              <i class="fas fa-download me-1"></i>Télécharger
+            </a>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- ── VIDEO MODE ── -->
+      {% else %}
+
+      {% if playlist_id %}
+      <div class="card-secel mb-4">
+        <div class="card-secel-header">
+          <h6><i class="fab fa-youtube me-2" style="color:#ff4444;"></i>Playlist du cours</h6>
+        </div>
+        <div class="card-secel-body p-0" style="border-radius:0 0 14px 14px;overflow:hidden;">
+          {% if is_enrolled or (current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'teacher' and course.teacher_id == current_user.id))) %}
+          <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
+            <iframe src="https://www.youtube-nocookie.com/embed/videoseries?list={{ playlist_id }}&rel=0&modestbranding=1"
+                    style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen title="Playlist {{ course.title }}"></iframe>
+          </div>
+          {% else %}
+          <div class="lock-overlay">
+            <i class="fas fa-lock fa-3x mb-3"></i>
+            <p class="mb-0">{% if not course.is_free %}Payez pour accéder à toutes les vidéos.{% else %}Inscrivez-vous pour regarder la playlist.{% endif %}</p>
+            {% if not course.is_free %}
+            <a href="{{ url_for('payment_checkout', course_id=course.id) }}" class="btn-pay-moneroo-sm mt-3">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+                <path d="M7.211 0H0v24h7.211L12 9.6 7.211 0Z" fill="#ffffff" opacity=".9"/>
+                <path d="M16.8 0 12 9.6 16.8 24H24V0H16.8Z" fill="#FFDC00"/>
+              </svg>
+              Payer {{ course.price|int }} {{ course.currency }}
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if videos %}
+      <div class="card-secel mb-4">
+        <div class="card-secel-header">
+          <h6><i class="fas fa-film me-2" style="color:#2563eb"></i>Contenu du cours
+            <span class="ms-2 text-muted" style="font-size:.82rem;font-weight:400;">{{ videos|length }} leçon{{ 's' if videos|length>1 }}</span>
+          </h6>
+        </div>
+        <div class="card-secel-body p-0">
+          {% for video in videos %}
+          <div class="video-list-item {% if loop.index == 1 %}vli-first{% endif %}">
+            <div class="vli-num">{{ loop.index }}</div>
+            <div class="vli-icon"><i class="fas fa-play-circle"></i></div>
+            <div class="vli-info">
+              <div class="vli-title">{{ video.title }}</div>
+              {% if video.description %}<div class="vli-desc">{{ video.description[:80] }}</div>{% endif %}
+              {% if video.duration_seconds %}<div class="vli-dur"><i class="fas fa-clock me-1"></i>{{ (video.duration_seconds // 60) }}min</div>{% endif %}
+            </div>
+            <div class="vli-action">
+              {% if is_enrolled or (current_user.is_authenticated and (current_user.role == 'admin' or (current_user.role == 'teacher' and course.teacher_id == current_user.id))) %}
+                <a href="{{ url_for('watch_video', video_id=video.id) }}" class="btn-secel-gold btn-sm">
+                  <i class="fas fa-play me-1"></i>Regarder
+                </a>
+              {% elif not current_user.is_authenticated %}
+                <span class="vli-lock"><i class="fas fa-lock"></i></span>
+              {% else %}
+                <span class="vli-lock text-muted" style="font-size:.75rem;"><i class="fas fa-lock me-1"></i>Inscris-toi</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if pdfs %}
+      <div class="card-secel">
+        <div class="card-secel-header"><h6><i class="fas fa-file-pdf me-2" style="color:#dc2626"></i>Ressources PDF</h6></div>
+        <div class="card-secel-body">
+          {% for pdf in pdfs %}
+          <div class="pdf-list-item">
+            <i class="fas fa-file-pdf fa-2x text-danger me-3"></i>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ pdf.title }}</div>
+              {% if pdf.description %}<div class="text-muted small">{{ pdf.description }}</div>{% endif %}
+            </div>
+            {% if is_enrolled %}
+            <a href="{{ url_for('static', filename=pdf.file_path) }}" class="btn-secel-outline btn-sm" target="_blank">
+              <i class="fas fa-download me-1"></i>Télécharger
+            </a>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% endif %}
+    </div>
+
+    <!-- Sidebar: Teacher -->
+    <div class="col-lg-4">
+      <div class="card-secel p-4 text-center">
+        <div class="teacher-avatar-lg">{{ (course.teacher.full_name or course.teacher.username)[0].upper() }}</div>
+        <h6 class="mt-3 fw-bold">{{ course.teacher.full_name or course.teacher.username }}</h6>
+        <div class="text-muted small mb-2"><i class="fas fa-chalkboard-teacher me-1" style="color:#2563eb"></i>Instructeur certifié</div>
+        {% if course.teacher.bio %}
+        <p class="text-muted small">{{ course.teacher.bio[:200] }}</p>
+        {% endif %}
+        <div class="d-flex justify-content-center gap-4 mt-3">
+          <div class="text-center">
+            <div class="fw-bold" style="font-size:1.1rem;color:#2563eb">{{ course.teacher.courses_taught.count() }}</div>
+            <small class="text-muted">Cours</small>
+          </div>
+          <div class="text-center">
+            <div class="fw-bold" style="font-size:1.1rem;color:#2563eb">{{ course.enrollments.count() }}</div>
+            <small class="text-muted">Étudiants</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Partager -->
+      <div class="card-secel p-4 mt-4">
+        <div class="fw-bold mb-3" style="font-size:.9rem;"><i class="fas fa-share-alt me-2" style="color:#2563eb"></i>Partager ce cours</div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="https://wa.me/?text={{ (course.title + ' — SECEL ' + request.url)|urlencode }}" target="_blank" class="share-btn share-wa">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+          </a>
+          <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url|urlencode }}" target="_blank" class="share-btn share-fb">
+            <i class="fab fa-facebook-f"></i>
+          </a>
+          <button onclick="navigator.clipboard.writeText(window.location.href);this.textContent='✓ Copié!';setTimeout(()=>this.textContent='Copier',2000);" class="share-btn share-copy">
+            <i class="fas fa-link me-1"></i>Copier
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Course Hero — Light theme ───────────────────────── */
+.course-hero {
+  background: linear-gradient(135deg, #f8fafc 0%, rgba(37,99,235,.06) 100%);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 48px 0 44px;
+}
+.ch-breadcrumb { font-size: .8rem; color: #94a3b8; }
+.ch-breadcrumb a { color: #64748b; text-decoration: none; transition: color .2s; }
+.ch-breadcrumb a:hover { color: #2563eb; }
+.ch-breadcrumb i { font-size: .65rem; color: #cbd5e1; }
+
+.ch-type-badge {
+  display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 20px;
+  font-size: .72rem; font-weight: 700;
+}
+.ch-type-video { background: rgba(37,99,235,.1);  color: #2563eb; border: 1px solid rgba(37,99,235,.25); }
+.ch-type-ebook { background: rgba(14,165,233,.1); color: #0ea5e9; border: 1px solid rgba(14,165,233,.25); }
+.ch-paid-badge {
+  display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 20px;
+  font-size: .72rem; font-weight: 700;
+  background: rgba(124,58,237,.1); color: #7c3aed; border: 1px solid rgba(124,58,237,.25);
+}
+.ch-title {
+  font-size: clamp(1.4rem,3vw,2.1rem); font-weight: 800; line-height: 1.3;
+  margin-bottom: 10px; color: #1e293b;
+}
+.ch-desc  { color: #64748b; font-size: .9rem; line-height: 1.65; margin-bottom: 0; }
+.ch-meta  {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: .82rem; color: #64748b; margin-top: 16px;
+}
+.ch-meta span { display: flex; align-items: center; gap: 5px; }
+.ch-meta i    { color: #2563eb; }
+
+/* Delete button */
+.btn-delete-hero {
+  background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.25); color: #dc2626;
+  width: 40px; height: 40px; border-radius: 9px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .2s; flex-shrink: 0; font-size: .9rem;
+}
+.btn-delete-hero:hover { background: rgba(220,38,38,.18); border-color: #dc2626; }
+
+/* ── Enrollment Card ─────────────────────────────────── */
+.enroll-card {
+  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px;
+  overflow: hidden; box-shadow: 0 8px 32px rgba(37,99,235,.10), 0 2px 8px rgba(0,0,0,.06);
+}
+.ec-thumb {
+  width: 100%; height: 190px; background-size: cover; background-position: center;
+  background-color: #f1f5f9;
+}
+.ec-thumb-default {
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg,#f1f5f9,#e2e8f0); color: #94a3b8;
+}
+.ec-body { padding: 22px; }
+
+.ec-enrolled-badge {
+  background: rgba(22,163,74,.10); border: 1px solid rgba(22,163,74,.25); color: #16a34a;
+  border-radius: 10px; padding: 11px 14px; font-size: .85rem; font-weight: 700;
+  display: flex; align-items: center;
+}
+.ec-admin-badge {
+  background: rgba(37,99,235,.08); border: 1px solid rgba(37,99,235,.25); color: #2563eb;
+  border-radius: 10px; padding: 11px 14px; font-size: .82rem; font-weight: 600;
+  display: flex; align-items: center;
+}
+
+/* Prix */
+.ec-price-display {
+  text-align: center; padding: 16px;
+  background: linear-gradient(135deg,rgba(37,99,235,.06),rgba(37,99,235,.02));
+  border: 1px solid rgba(37,99,235,.12); border-radius: 12px;
+}
+.ec-price-amount  { font-size: 2.2rem; font-weight: 900; color: #2563eb; line-height: 1; }
+.ec-price-currency { font-size: 1rem; font-weight: 600; }
+.ec-price-label   { font-size: .78rem; color: #94a3b8; margin-top: 5px; }
+
+/* Bouton principal enroll */
+.btn-enroll-main {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 14px; border-radius: 11px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;
+  font-weight: 800; font-size: 1rem; text-decoration: none; transition: all .22s;
+  box-shadow: 0 4px 14px rgba(37,99,235,.35);
+}
+.btn-enroll-main:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(37,99,235,.45); color: #fff; }
+
+.btn-enroll-outline {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 11px; border-radius: 11px;
+  border: 1px solid #e2e8f0; color: #1e293b;
+  font-weight: 600; font-size: .9rem; text-decoration: none; transition: all .2s;
+  background: #ffffff;
+}
+.btn-enroll-outline:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,.04); }
+
+/* Bouton Moneroo — blue/yellow brand */
+.btn-pay-moneroo {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 14px; border-radius: 11px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #0052cc, #0074FA); color: #fff;
+  font-weight: 800; font-size: 1rem; text-decoration: none; transition: all .22s;
+  box-shadow: 0 4px 16px rgba(0,116,250,.30);
+}
+.btn-pay-moneroo:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,116,250,.45); color: #fff; }
+.btn-pay-moneroo .moneroo-svg-icon { flex-shrink: 0; }
+
+.btn-pay-moneroo-sm {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border-radius: 9px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #0052cc, #0074FA); color: #fff;
+  font-weight: 700; font-size: .875rem; text-decoration: none; transition: all .2s;
+}
+.btn-pay-moneroo-sm:hover { transform: translateY(-1px); color: #fff; }
+
+/* Méthodes de paiement */
+.ec-pay-methods {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  font-size: .75rem;
+}
+.epm-item { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+
+/* Perks */
+.ec-perks { display: flex; flex-direction: column; gap: 9px; border-top: 1px solid #f1f5f9; padding-top: 16px; }
+.ec-perk  { display: flex; align-items: center; gap: 10px; font-size: .83rem; color: #475569; }
+.ec-perk i { width: 18px; text-align: center; font-size: .95rem; }
+
+/* ── Main content cards ────────────────────────────────── */
+.card-secel {
+  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;
+  overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.card-secel-header {
+  padding: 14px 18px; border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.card-secel-header h6 { margin: 0; font-size: .875rem; font-weight: 700; color: #1e293b; }
+.card-secel-header h6 i { color: #2563eb; }
+.card-secel-body { padding: 18px; }
+
+/* ── Video List ───────────────────────────────────────── */
+.video-list-item {
+  display: flex; align-items: center; gap: 14px; padding: 13px 20px;
+  border-bottom: 1px solid #f1f5f9; transition: background .15s;
+}
+.video-list-item:hover { background: rgba(37,99,235,.03); }
+.video-list-item:last-child { border-bottom: none; }
+.vli-first { background: rgba(37,99,235,.04); }
+.vli-num  { width: 24px; text-align: center; font-size: .78rem; color: #94a3b8; font-weight: 700; flex-shrink: 0; }
+.vli-icon { font-size: 1.15rem; color: #2563eb; flex-shrink: 0; }
+.vli-info { flex: 1; min-width: 0; }
+.vli-title { font-weight: 600; font-size: .88rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vli-desc  { font-size: .76rem; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vli-dur   { font-size: .7rem; color: #94a3b8; margin-top: 3px; }
+.vli-lock  { color: #cbd5e1; font-size: .9rem; }
+.vli-action { flex-shrink: 0; }
+
+/* ── Lock Overlay ─────────────────────────────────────── */
+.lock-overlay {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 48px 24px; text-align: center; color: #94a3b8;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+}
+.lock-overlay i { color: #cbd5e1; margin-bottom: 12px; }
+
+/* ── Teacher Sidebar Card ─────────────────────────────── */
+.teacher-avatar-lg {
+  width: 72px; height: 72px; border-radius: 50%; margin: 0 auto;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff; font-size: 1.8rem; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(37,99,235,.30);
+}
+
+/* ── PDF list item ────────────────────────────────────── */
+.pdf-list-item {
+  display: flex; align-items: center; gap: 14px; padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.pdf-list-item:last-child { border-bottom: none; }
+
+/* ── Share ────────────────────────────────────────────── */
+.share-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px; font-size: .8rem; font-weight: 600;
+  text-decoration: none; border: 1px solid #e2e8f0; cursor: pointer;
+  transition: all .2s; color: #64748b; background: #ffffff;
+}
+.share-wa:hover  { background: rgba(37,211,102,.10); border-color: #25d366; color: #25d366; }
+.share-fb:hover  { background: rgba(24,119,242,.10); border-color: #1877f2; color: #1877f2; }
+.share-copy:hover { background: rgba(37,99,235,.08); border-color: #2563eb; color: #2563eb; }
+</style>
+
+{% endblock %}

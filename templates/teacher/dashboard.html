@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% block title %}Tableau de Bord Enseignant — SECEL{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Welcome Banner -->
+  <div class="teacher-welcome-banner mb-4">
+    <div class="twb-left">
+      <div class="twb-avatar">{{ (current_user.full_name or current_user.username)[0].upper() }}</div>
+      <div>
+        <h2 class="twb-title"><span class="text-gold">{{ current_user.full_name or current_user.username }}</span></h2>
+        <p class="twb-sub">
+          {% if current_user.specialty %}<i class="fas fa-code me-1"></i>{{ current_user.specialty }} · {% endif %}
+          {{ courses|length }} cours · {{ total_students }} étudiant{% if total_students != 1 %}s{% endif %}
+        </p>
+        {% if current_user.qualifications %}
+        <p class="twb-quals"><i class="fas fa-graduation-cap me-1 text-gold"></i>{{ current_user.qualifications[:80] }}{% if current_user.qualifications|length > 80 %}…{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="twb-actions">
+      <a href="{{ url_for('new_course') }}" class="btn-twb-gold">
+        <i class="fas fa-plus me-2"></i>Nouveau cours
+      </a>
+      {% if courses %}
+      <a href="{{ url_for('upload_content', course_id=courses[0].id) }}" class="btn-twb-outline">
+        <i class="fas fa-upload me-2"></i>Ajouter contenu
+      </a>
+      {% else %}
+      <a href="{{ url_for('new_course') }}" class="btn-twb-outline">
+        <i class="fas fa-upload me-2"></i>Ajouter contenu
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="tch-kpi-card kpi-gold">
+        <div class="tch-kpi-icon"><i class="fas fa-book-open"></i></div>
+        <div class="tch-kpi-num">{{ courses|length }}</div>
+        <div class="tch-kpi-lbl">Mes cours</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="tch-kpi-card kpi-blue">
+        <div class="tch-kpi-icon"><i class="fas fa-users"></i></div>
+        <div class="tch-kpi-num">{{ total_students }}</div>
+        <div class="tch-kpi-lbl">Étudiants inscrits</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="tch-kpi-card kpi-green">
+        <div class="tch-kpi-icon"><i class="fas fa-eye"></i></div>
+        <div class="tch-kpi-num">{{ total_views }}</div>
+        <div class="tch-kpi-lbl">Vues vidéos</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="tch-kpi-card kpi-orange">
+        <div class="tch-kpi-icon"><i class="fas fa-book-open"></i></div>
+        <div class="tch-kpi-num">{{ total_videos }}</div>
+        <div class="tch-kpi-lbl">Cours publiés</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- LEFT: My courses list -->
+    <div class="col-lg-7">
+      <div class="tch-card">
+        <div class="tch-card-header d-flex justify-content-between align-items-center">
+          <h6><i class="fas fa-book me-2 text-gold"></i>Mes formations</h6>
+          <a href="{{ url_for('new_course') }}" class="btn-sm-gold"><i class="fas fa-plus me-1"></i>Nouveau</a>
+        </div>
+        <div class="tch-card-body p-0">
+          {% if courses %}
+            {% for course in courses %}
+            <div class="tch-course-item">
+              <div class="tch-course-thumb">
+                {% if course.thumbnail and (course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://')) %}
+                  <img src="{{ course.thumbnail }}" alt=""/>
+                {% elif course.thumbnail %}
+                  <img src="{{ url_for('static', filename='uploads/' + course.thumbnail) }}" alt=""/>
+                {% else %}
+                  <div class="tch-thumb-placeholder"><i class="fas fa-book-open"></i></div>
+                {% endif %}
+              </div>
+              <div class="tch-course-info">
+                <div class="tch-course-title">
+                  {{ course.title[:38] }}{% if course.title|length > 38 %}…{% endif %}
+                </div>
+                <div class="tch-course-meta">
+                  <!-- Approval status -->
+                  <span class="tch-badge
+                    {% if course.approval_status == 'approved' %}tch-badge-green
+                    {% elif course.approval_status == 'rejected' %}tch-badge-red
+                    {% else %}tch-badge-orange{% endif %}">
+                    {% if course.approval_status == 'approved' %}<i class="fas fa-check me-1"></i>Approuvé
+                    {% elif course.approval_status == 'rejected' %}<i class="fas fa-times me-1"></i>Refusé
+                    {% else %}<i class="fas fa-clock me-1"></i>En attente{% endif %}
+                  </span>
+                  <!-- Type -->
+                  <span class="tch-badge tch-badge-{{ 'blue' if course.course_type=='ebook' else 'gray' }}">
+                    {% if course.course_type == 'ebook' %}<i class="fas fa-book-open me-1"></i>eBook
+                    {% else %}<i class="fas fa-film me-1"></i>Vidéo{% endif %}
+                  </span>
+                  <span><i class="fas fa-users me-1"></i>{{ course.enrollments.count() }} inscrits</span>
+                  {% if not course.is_free %}
+                  <span class="text-gold"><i class="fas fa-coins me-1"></i>{{ course.price|int }} {{ course.currency }}</span>
+                  {% else %}
+                  <span style="color:#3fb950"><i class="fas fa-gift me-1"></i>Gratuit</span>
+                  {% endif %}
+                </div>
+                {% if course.approval_status == 'rejected' and course.rejection_reason %}
+                <div class="tch-rejection-note"><i class="fas fa-exclamation-triangle me-1"></i>{{ course.rejection_reason[:60] }}</div>
+                {% endif %}
+              </div>
+              <div class="tch-course-actions">
+                <!-- Modifier les infos du cours -->
+                <a href="{{ url_for('edit_course', course_id=course.id) }}" title="Modifier le cours" class="tch-action-btn tch-action-edit">
+                  <i class="fas fa-pen"></i>
+                </a>
+                {% if course.course_type == 'ebook' %}
+                <a href="{{ url_for('upload_ebook', course_id=course.id) }}" title="Gérer l'eBook" class="tch-action-btn" style="color:#60a5fa">
+                  <i class="fas fa-book-open"></i>
+                </a>
+                {% else %}
+                <a href="{{ url_for('upload_content', course_id=course.id) }}" title="Gérer les vidéos" class="tch-action-btn">
+                  <i class="fas fa-film"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('course_detail', course_id=course.id) }}" title="Voir le cours" class="tch-action-btn">
+                  <i class="fas fa-external-link-alt"></i>
+                </a>
+                <!-- Supprimer le cours -->
+                <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}" class="d-inline"
+                      onsubmit="return confirmDelete('{{ course.title[:40] }}')">
+                  <button type="submit" class="tch-action-btn tch-action-delete" title="Supprimer ce cours">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="empty-courses">
+              <i class="fas fa-chalkboard"></i>
+              <p>Vous n'avez pas encore créé de formation.</p>
+              <a href="{{ url_for('new_course') }}" class="btn-gold-sm mt-2">Créer mon premier cours</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Charts -->
+    <div class="col-lg-5">
+
+      <!-- Enrollments bar chart -->
+      <div class="tch-card mb-4">
+        <div class="tch-card-header">
+          <h6><i class="fas fa-chart-bar me-2 text-gold"></i>Inscriptions par cours</h6>
+        </div>
+        <div class="tch-card-body">
+          <div style="position:relative;height:200px">
+            <canvas id="enrollBar"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Views bar chart -->
+      <div class="tch-card">
+        <div class="tch-card-header">
+          <h6><i class="fas fa-chart-line me-2 text-gold"></i>Vues des vidéos (7 derniers jours)</h6>
+        </div>
+        <div class="tch-card-body">
+          <div style="position:relative;height:160px">
+            <canvas id="viewsLine"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Pending videos (awaiting admin approval) -->
+  {% if pending_videos %}
+  <div class="tch-card mt-4">
+    <div class="tch-card-header d-flex justify-content-between align-items-center">
+      <h6><i class="fas fa-clock me-2 text-gold"></i>Vidéos en attente de validation</h6>
+      <span class="pending-count-badge">{{ pending_videos|length }}</span>
+    </div>
+    <div class="tch-card-body p-0">
+      <div class="table-responsive">
+        <table class="tch-table">
+          <thead>
+            <tr><th>Titre</th><th>Cours</th><th>Durée</th><th>Ajouté le</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            {% for v in pending_videos %}
+            <tr>
+              <td><i class="fas fa-film me-2 text-gold"></i>{{ v.title[:35] }}{% if v.title|length > 35 %}…{% endif %}</td>
+              <td class="text-muted small">{{ v.course.title[:25] if v.course else '—' }}</td>
+              <td class="text-muted small">{{ (v.duration_seconds // 60) }}min</td>
+              <td class="text-muted small">{{ v.upload_date.strftime('%d/%m/%Y') if v.upload_date else '—' }}</td>
+              <td><span class="tch-badge tch-badge-orange">En attente</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<style>
+/* ── Welcome Banner ─────────────────────────────────────── */
+.teacher-welcome-banner {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(37,99,235,.05) 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 24px 28px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  box-shadow: 0 2px 12px rgba(37,99,235,.06);
+}
+.twb-left { display: flex; align-items: flex-start; gap: 16px; }
+.twb-avatar {
+  width: 58px; height: 58px; border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 900; color: #fff; flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37,99,235,.35);
+}
+.twb-title  { font-size: 1.3rem; font-weight: 700; margin: 0; color: #1e293b; }
+.twb-sub    { color: #64748b; font-size: .875rem; margin: 4px 0 0; }
+.twb-quals  { color: #94a3b8; font-size: .78rem; margin-top: 5px; }
+.twb-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-twb-gold {
+  background: #2563eb; color: #fff; padding: 9px 20px; border-radius: 9px;
+  font-weight: 700; font-size: .875rem; text-decoration: none;
+  display: inline-flex; align-items: center; transition: all .2s;
+  box-shadow: 0 3px 10px rgba(37,99,235,.3);
+}
+.btn-twb-gold:hover { background: #1d4ed8; color: #fff; transform: translateY(-1px); }
+.btn-twb-outline {
+  background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b;
+  padding: 9px 20px; border-radius: 9px; font-weight: 600; font-size: .875rem;
+  text-decoration: none; display: inline-flex; align-items: center; transition: all .2s;
+}
+.btn-twb-outline:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,.04); }
+
+/* ── KPI Cards ──────────────────────────────────────────── */
+.tch-kpi-card {
+  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 20px 16px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  transition: transform .2s, box-shadow .2s;
+}
+.tch-kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(37,99,235,.10); }
+.tch-kpi-icon {
+  width: 48px; height: 48px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem; margin: 0 auto 10px;
+}
+.tch-kpi-num  { font-size: 1.65rem; font-weight: 900; line-height: 1.1; }
+.tch-kpi-lbl  { font-size: .7rem; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; font-weight: 600; }
+
+.kpi-gold   .tch-kpi-icon { background: rgba(37,99,235,.12); color: #2563eb; }
+.kpi-gold   .tch-kpi-num  { color: #2563eb; }
+.kpi-gold   { border-color: rgba(37,99,235,.25); }
+
+.kpi-blue   .tch-kpi-icon { background: rgba(14,165,233,.12); color: #0ea5e9; }
+.kpi-blue   .tch-kpi-num  { color: #0ea5e9; }
+.kpi-blue   { border-color: rgba(14,165,233,.25); }
+
+.kpi-green  .tch-kpi-icon { background: rgba(22,163,74,.12); color: #16a34a; }
+.kpi-green  .tch-kpi-num  { color: #16a34a; }
+.kpi-green  { border-color: rgba(22,163,74,.25); }
+
+.kpi-orange .tch-kpi-icon { background: rgba(245,158,11,.12); color: #f59e0b; }
+.kpi-orange .tch-kpi-num  { color: #f59e0b; }
+.kpi-orange { border-color: rgba(245,158,11,.25); }
+
+/* ── Cards ──────────────────────────────────────────────── */
+.tch-card {
+  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.tch-card-header {
+  padding: 14px 18px; border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc; font-size: .875rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tch-card-header h6 { margin: 0; font-size: .875rem; font-weight: 700; color: #1e293b; }
+.tch-card-body { padding: 16px; }
+.btn-sm-gold {
+  background: rgba(37,99,235,.10); border: 1px solid rgba(37,99,235,.25); color: #2563eb;
+  padding: 5px 12px; border-radius: 7px; font-size: .78rem; font-weight: 600;
+  text-decoration: none; transition: all .2s;
+}
+.btn-sm-gold:hover { background: #2563eb; color: #fff; }
+
+/* ── Course Items ───────────────────────────────────────── */
+.tch-course-item {
+  display: flex; align-items: center; gap: 14px; padding: 13px 18px;
+  border-bottom: 1px solid #f1f5f9; transition: background .15s;
+}
+.tch-course-item:hover { background: rgba(37,99,235,.03); }
+.tch-course-item:last-child { border-bottom: none; }
+.tch-course-thumb {
+  width: 72px; height: 48px; border-radius: 8px; overflow: hidden;
+  background: #f1f5f9; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.tch-course-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.tch-thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 1.2rem; }
+.tch-course-info { flex: 1; min-width: 0; }
+.tch-course-title { font-weight: 600; font-size: .875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1e293b; }
+.tch-course-meta  { display: flex; gap: 10px; font-size: .73rem; color: #94a3b8; margin-top: 5px; flex-wrap: wrap; align-items: center; }
+.tch-course-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.tch-action-btn {
+  width: 32px; height: 32px; border-radius: 7px; background: #f8fafc;
+  border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center;
+  color: #94a3b8; text-decoration: none; font-size: .8rem; transition: all .2s; cursor: pointer; padding: 0;
+}
+.tch-action-btn:hover { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,.06); }
+.tch-action-delete:hover { border-color: #dc2626 !important; color: #dc2626 !important; background: rgba(220,38,38,.06) !important; }
+.tch-action-edit:hover   { border-color: #2563eb !important; color: #2563eb !important; background: rgba(37,99,235,.06) !important; }
+
+/* ── Badges ─────────────────────────────────────────────── */
+.tch-badge {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 20px; font-size: .68rem; font-weight: 600;
+}
+.tch-badge-green  { background: rgba(22,163,74,.10);   color: #16a34a;  border: 1px solid rgba(22,163,74,.22); }
+.tch-badge-gray   { background: rgba(148,163,184,.10); color: #64748b;  border: 1px solid rgba(148,163,184,.22); }
+.tch-badge-orange { background: rgba(37,99,235,.10);   color: #2563eb;  border: 1px solid rgba(37,99,235,.22); }
+.tch-badge-red    { background: rgba(220,38,38,.10);   color: #dc2626;  border: 1px solid rgba(220,38,38,.22); }
+.tch-badge-blue   { background: rgba(14,165,233,.10);  color: #0ea5e9;  border: 1px solid rgba(14,165,233,.22); }
+.tch-rejection-note { font-size: .72rem; color: #dc2626; margin-top: 5px; }
+
+/* ── Empty / utils ──────────────────────────────────────── */
+.empty-courses { text-align: center; padding: 48px 24px; color: #94a3b8; }
+.empty-courses i { font-size: 2.5rem; margin-bottom: 14px; color: #e2e8f0; display: block; }
+.empty-courses p { font-size: .9rem; color: #64748b; }
+.btn-gold-sm {
+  background: rgba(37,99,235,.10); border: 1px solid rgba(37,99,235,.3); color: #2563eb;
+  padding: 8px 18px; border-radius: 8px; font-weight: 600; font-size: .85rem;
+  text-decoration: none; display: inline-block; transition: all .2s;
+}
+.btn-gold-sm:hover { background: #2563eb; color: #fff; }
+.pending-count-badge {
+  background: #2563eb; color: #fff; font-size: .7rem; font-weight: 800;
+  padding: 2px 9px; border-radius: 20px;
+}
+
+/* ── Pending table ──────────────────────────────────────── */
+.tch-table { width: 100%; border-collapse: collapse; font-size: .845rem; }
+.tch-table th {
+  padding: 10px 16px; font-size: .68rem; text-transform: uppercase;
+  letter-spacing: .8px; color: #64748b; background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0; font-weight: 700;
+}
+.tch-table td { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+.tch-table td.text-muted, .tch-table .text-muted { color: #94a3b8 !important; }
+.tch-table tr:hover td { background: rgba(37,99,235,.03); }
+.tch-table tr:last-child td { border-bottom: none; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(title) {
+  return confirm('⚠️ Supprimer définitivement le cours "' + title + '" ?\n\nCette action est irréversible : toutes les vidéos, inscriptions et données associées seront supprimées.');
+}
+
+const enrollBarData = {{ enroll_bar_data | tojson }};
+const viewsData     = {{ views_line_data | tojson }};
+
+// Enrollments Bar
+const eCtx = document.getElementById('enrollBar');
+if (eCtx) {
+  new Chart(eCtx, {
+    type: 'bar',
+    data: {
+      labels: enrollBarData.labels,
+      datasets: [{
+        label: 'Inscriptions',
+        data: enrollBarData.values,
+        backgroundColor: [
+          'rgba(37,99,235,.6)', 'rgba(88,166,255,.6)', 'rgba(63,185,80,.6)',
+          'rgba(96,165,250,.6)', 'rgba(188,140,255,.6)', 'rgba(248,81,73,.6)',
+          'rgba(37,99,235,.4)', 'rgba(88,166,255,.4)'
+        ],
+        borderWidth: 0,
+        borderRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 30 }, grid: { display: false } },
+        y: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#e2e8f0' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// Views Line
+const vCtx = document.getElementById('viewsLine');
+if (vCtx) {
+  new Chart(vCtx, {
+    type: 'line',
+    data: {
+      labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+      datasets: [{
+        label: 'Vues',
+        data: viewsData,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,.08)',
+        borderWidth: 2,
+        pointBackgroundColor: '#2563eb',
+        pointRadius: 4,
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#e2e8f0' }, beginAtZero: true }
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

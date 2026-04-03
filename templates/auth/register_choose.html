@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}Rejoindre SECEL — Choisissez votre profil{% endblock %}
+
+{% block content %}
+<section class="choose-role-section">
+  <div class="container py-5">
+
+    <!-- Header -->
+    <div class="text-center mb-5">
+      <div class="choose-icon-wrap mb-3">
+        <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+          <rect width="52" height="52" rx="12" fill="#2563eb"/>
+          <polygon points="26,8 40,18 26,28 12,18" fill="#ffffff"/>
+          <path d="M14 20 Q14 33 26 36 Q38 33 38 20" fill="#ffffff" opacity="0.85"/>
+          <line x1="12" y1="18" x2="12" y2="34" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="12" cy="37" r="3" fill="#ffffff"/>
+        </svg>
+      </div>
+      <h1 class="choose-title">Rejoindre <span class="text-gold">SECEL</span></h1>
+      <p class="choose-subtitle">Sélectionnez votre profil pour créer votre compte</p>
+    </div>
+
+    <!-- Cards -->
+    <div class="row g-4 justify-content-center">
+
+      <!-- Student Card -->
+      <div class="col-sm-10 col-md-5 col-lg-4">
+        <a href="{{ url_for('register_student') }}" class="choose-card choose-student text-decoration-none">
+          <div class="choose-card-icon">
+            <i class="fas fa-user-graduate"></i>
+          </div>
+          <h3 class="choose-card-title">Étudiant</h3>
+          <p class="choose-card-desc">
+            Accédez à des formations de qualité en informatique, IA, cybersécurité et développement.
+            Progressez à votre rythme et obtenez des certifications.
+          </p>
+          <ul class="choose-perks">
+            <li><i class="fas fa-check-circle"></i> Accès aux cours gratuits et payants</li>
+            <li><i class="fas fa-check-circle"></i> Suivi de progression personnalisé</li>
+            <li><i class="fas fa-check-circle"></i> Certificats de réussite</li>
+            <li><i class="fas fa-check-circle"></i> Paiement Mobile Money (Orange / MTN)</li>
+          </ul>
+          <div class="choose-cta">
+            <span>Créer mon compte étudiant</span>
+            <i class="fas fa-arrow-right ms-2"></i>
+          </div>
+        </a>
+      </div>
+
+      <!-- Teacher Card -->
+      <div class="col-sm-10 col-md-5 col-lg-4">
+        <a href="{{ url_for('register_teacher') }}" class="choose-card choose-teacher text-decoration-none">
+          <div class="choose-card-icon">
+            <i class="fas fa-chalkboard-teacher"></i>
+          </div>
+          <h3 class="choose-card-title">Enseignant</h3>
+          <p class="choose-card-desc">
+            Partagez votre expertise avec des milliers d'apprenants africains.
+            Créez et publiez vos formations vidéo et PDF en toute autonomie.
+          </p>
+          <ul class="choose-perks">
+            <li><i class="fas fa-check-circle"></i> Publication de cours (vidéo + PDF)</li>
+            <li><i class="fas fa-check-circle"></i> Tableau de bord analytics</li>
+            <li><i class="fas fa-check-circle"></i> Gestion des inscriptions</li>
+            <li><i class="fas fa-check-circle"></i> Revenus sur formations payantes</li>
+          </ul>
+          <div class="choose-cta">
+            <span>Créer mon compte enseignant</span>
+            <i class="fas fa-arrow-right ms-2"></i>
+          </div>
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Already have account -->
+    <p class="text-center mt-4" style="color:var(--text-muted);">
+      Vous avez déjà un compte ?
+      <a href="{{ url_for('login') }}" class="text-gold fw-semibold">Se connecter</a>
+    </p>
+
+  </div>
+</section>
+
+<style>
+.choose-role-section {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  background: radial-gradient(ellipse at top, rgba(37,99,235,.07) 0%, transparent 60%);
+}
+.choose-icon-wrap { display: flex; justify-content: center; }
+.choose-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 2.2rem; font-weight: 800;
+  color: var(--text-primary);
+}
+.choose-subtitle {
+  color: var(--text-muted); font-size: 1.05rem; margin-top: 8px;
+}
+
+/* Cards */
+.choose-card {
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 28px;
+  color: var(--text-primary);
+  transition: all .3s ease;
+  height: 100%;
+}
+.choose-card:hover {
+  transform: translateY(-6px);
+  color: var(--text-primary);
+}
+.choose-student:hover { border-color: #58a6ff; box-shadow: 0 16px 40px rgba(88,166,255,.15); }
+.choose-teacher:hover { border-color: var(--gold); box-shadow: 0 16px 40px rgba(37,99,235,.15); }
+
+.choose-card-icon {
+  width: 72px; height: 72px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; margin-bottom: 20px;
+}
+.choose-student .choose-card-icon { background: rgba(88,166,255,.12); color: #58a6ff; }
+.choose-teacher .choose-card-icon { background: rgba(37,99,235,.12); color: var(--gold); }
+
+.choose-card-title { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.4rem; margin-bottom: 10px; }
+.choose-card-desc  { color: var(--text-muted); font-size: .9rem; line-height: 1.6; margin-bottom: 18px; }
+
+.choose-perks {
+  list-style: none; padding: 0; margin: 0 0 24px;
+  display: flex; flex-direction: column; gap: 8px;
+  flex: 1;
+}
+.choose-perks li {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .855rem; color: var(--text-secondary);
+}
+.choose-student .choose-perks li i { color: #58a6ff; }
+.choose-teacher .choose-perks li i { color: var(--gold); }
+
+.choose-cta {
+  display: flex; align-items: center; justify-content: center;
+  padding: 13px 20px; border-radius: 10px;
+  font-weight: 700; font-size: .9rem;
+  transition: all .2s; margin-top: auto;
+}
+.choose-student .choose-cta { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.3); }
+.choose-student:hover .choose-cta { background: #58a6ff; color: #fff; }
+.choose-teacher .choose-cta { background: rgba(37,99,235,.12); color: var(--gold); border: 1px solid rgba(37,99,235,.3); }
+.choose-teacher:hover .choose-cta { background: var(--gold); color: #fff; }
+</style>
+{% endblock %}

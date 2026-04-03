@@ -1,0 +1,1348 @@
+{% extends 'base.html' %}
+{% block title %}Gérer les vidéos — {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="uc-page">
+<div class="container py-4" style="max-width:1000px">
+
+  <!-- ── Header ── -->
+  <div class="uc-header mb-4">
+    <div class="uc-header-left">
+      <a href="{{ url_for('admin_dashboard' if current_user.role=='admin' else 'teacher_dashboard') }}"
+         class="back-link"><i class="fas fa-arrow-left me-2"></i>Retour</a>
+      <h2 class="uc-title mt-2">
+        <i class="fas fa-film text-gold me-2"></i>Gérer les vidéos
+      </h2>
+      <p class="text-muted mb-0">
+        Cours : <strong class="text-light">{{ course.title }}</strong>
+        <span class="ms-2 status-badge
+          {% if course.approval_status == 'approved' %}status-active
+          {% elif course.approval_status == 'rejected' %}status-inactive
+          {% else %}status-pending{% endif %}">
+          {% if course.approval_status == 'approved' %}✓ Approuvé
+          {% elif course.approval_status == 'rejected' %}✗ Refusé
+          {% else %}⏳ En attente{% endif %}
+        </span>
+      </p>
+    </div>
+    <div class="uc-header-stats">
+      <div class="uc-stat">
+        <div class="uc-stat-val">{{ videos|length }}</div>
+        <div class="uc-stat-lbl">Vidéo{{ 's' if videos|length != 1 }}</div>
+      </div>
+      <div class="uc-stat">
+        <div class="uc-stat-val text-success">{{ videos|selectattr('is_approved')|list|length }}</div>
+        <div class="uc-stat-lbl">Approuvées</div>
+      </div>
+      <div class="uc-stat">
+        <div class="uc-stat-val text-warning">{{ videos|rejectattr('is_approved')|list|length }}</div>
+        <div class="uc-stat-lbl">En attente</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       COURSE INFO EDITOR
+  ═══════════════════════════════════════════════════ -->
+  <div class="card-secel mb-4" id="courseInfoCard">
+    <div class="card-secel-header d-flex align-items-center justify-content-between">
+      <h6><i class="fas fa-edit me-2 text-gold"></i>Informations du cours</h6>
+      <button class="ci-toggle-btn" id="ciToggleBtn" onclick="toggleCourseInfo()">
+        <i class="fas fa-chevron-down" id="ciChevron"></i>
+      </button>
+    </div>
+    <div id="courseInfoBody" class="card-secel-body">
+      <form id="courseInfoForm" enctype="multipart/form-data">
+
+        <div class="ci-layout">
+
+          <!-- LEFT: Thumbnail -->
+          <div class="ci-thumb-col">
+            <label class="form-label-secel mb-2">Photo du cours</label>
+            <div class="ci-thumb-zone" id="ciThumbZone"
+                 ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleThumbDrop(event)">
+              {% if course.thumbnail %}
+              <img id="ciThumbPreview"
+                   src="{% if course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://') %}{{ course.thumbnail }}{% else %}{{ url_for('static', filename='uploads/' + course.thumbnail) }}{% endif %}"
+                   alt="Vignette"/>
+              <div class="ci-thumb-hover">
+                <i class="fas fa-camera fa-2x mb-2"></i>
+                <span>Changer la photo</span>
+              </div>
+              {% else %}
+              <div class="ci-thumb-placeholder" id="ciThumbPlaceholder">
+                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                <span class="text-muted small">Photo du cours</span>
+              </div>
+              <img id="ciThumbPreview" src="" alt="" style="display:none"/>
+              <div class="ci-thumb-hover">
+                <i class="fas fa-camera fa-2x mb-2"></i>
+                <span>Ajouter une photo</span>
+              </div>
+              {% endif %}
+              <input type="file" id="ciThumbInput" name="thumbnail"
+                     accept=".jpg,.jpeg,.png,.webp" class="ci-thumb-file-input"
+                     onchange="previewThumb(this)"/>
+            </div>
+            <label for="ciThumbInput" class="ci-thumb-label">
+              <i class="fas fa-folder-open me-1"></i>Parcourir…
+            </label>
+            <p class="text-muted" style="font-size:.7rem;text-align:center;margin-top:4px">JPG, PNG, WEBP</p>
+          </div>
+
+          <!-- RIGHT: Fields -->
+          <div class="ci-fields-col">
+            <div class="ci-row">
+              <div class="form-group-secel flex-1">
+                <label class="form-label-secel">Titre du cours *</label>
+                <input type="text" name="title" class="input-secel"
+                       value="{{ course.title }}" required/>
+              </div>
+            </div>
+
+            <div class="form-group-secel mb-3">
+              <label class="form-label-secel">Description</label>
+              <textarea name="description" class="input-secel" rows="3"
+                        placeholder="Décrivez votre cours…">{{ course.description or '' }}</textarea>
+            </div>
+
+            <div class="ci-row">
+              <div class="form-group-secel" style="flex:1">
+                <label class="form-label-secel">Catégorie</label>
+                <select name="category" class="input-secel" style="height:44px">
+                  <option value="">— Choisir —</option>
+                  {% for cat in ['Informatique & IA','Management & Leadership','Finance & Business','Langues','Développement personnel','Marketing Digital','Droit & Comptabilité','Santé & Bien-être'] %}
+                  <option value="{{ cat }}" {% if course.category == cat %}selected{% endif %}>{{ cat }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group-secel" style="width:140px">
+                <label class="form-label-secel">Niveau</label>
+                <select name="level" class="input-secel" style="height:44px">
+                  {% for lvl in ['Débutant','Intermédiaire','Avancé','Expert'] %}
+                  <option {% if course.level == lvl %}selected{% endif %}>{{ lvl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="ci-row align-items-end">
+              <div class="form-group-secel" style="width:180px">
+                <label class="form-label-secel">Prix (XAF)</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-money-bill-wave input-icon" style="font-size:.8rem"></i>
+                  <input type="number" name="price" class="input-secel"
+                         value="{{ course.price|int }}" min="0" step="500"
+                         placeholder="0 = Gratuit" style="padding-left:2.2rem"/>
+                </div>
+                <span class="text-muted" style="font-size:.7rem">0 XAF = cours gratuit</span>
+              </div>
+              <div class="flex-1">
+                <button type="button" class="btn-save-course" id="btnSaveCourse" onclick="saveCourseInfo()">
+                  <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                </button>
+                <div id="ciSaveStatus" class="ci-save-status"></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /ci-layout -->
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       BUILDER — Ajouter des vidéos
+  ═══════════════════════════════════════════════════ -->
+  <div class="card-secel mb-5" id="builderCard">
+    <div class="card-secel-header">
+      <h6><i class="fas fa-plus-circle me-2 text-gold"></i>Ajouter des vidéos au cours</h6>
+      <span class="text-muted small">Ajoutez une ou plusieurs vidéos, puis uploadez tout d'un coup</span>
+    </div>
+    <div class="card-secel-body p-0">
+
+      <!-- Video Entry List -->
+      <div id="videoEntryList" class="entry-list">
+        <!-- Entries injected by JS -->
+      </div>
+
+      <!-- Add Entry Button -->
+      <div class="entry-add-row">
+        <button type="button" class="btn-add-entry" id="btnAddEntry" onclick="addVideoEntry()">
+          <i class="fas fa-plus me-2"></i>Ajouter une vidéo
+        </button>
+        <span class="text-muted small ms-3" id="entryCountLabel">0 vidéo(s) dans la file</span>
+      </div>
+
+      <!-- Upload All Button -->
+      <div class="entry-actions" id="entryActionsBar" style="display:none">
+        <div class="entry-actions-left">
+          <button type="button" class="btn-upload-all" id="btnUploadAll" onclick="uploadAll()">
+            <i class="fas fa-upload me-2"></i>Uploader tout (<span id="entryCount">0</span>)
+          </button>
+          <button type="button" class="btn-clear-all" onclick="clearAllEntries()">
+            <i class="fas fa-times me-1"></i>Vider la file
+          </button>
+        </div>
+        <div class="upload-overall-progress" id="overallProgress" style="display:none">
+          <div class="overall-bar-wrap"><div class="overall-bar" id="overallBar"></div></div>
+          <span id="overallLabel" class="text-muted small ms-2">0%</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       Admin: YouTube Playlist
+  ═══════════════════════════════════════════════════ -->
+  {% if current_user.role == 'admin' %}
+  <div class="card-secel mb-5 yt-playlist-card">
+    <div class="card-secel-header">
+      <h6><i class="fab fa-youtube me-2" style="color:#ff4444"></i>Playlist YouTube intégrée
+        <span class="badge bg-danger ms-2" style="font-size:.6rem;">Admin</span></h6>
+    </div>
+    <div class="card-secel-body">
+      <p class="text-muted small mb-3">
+        Cette playlist sera intégrée directement dans l'app. Les étudiants ne peuvent pas accéder à l'URL externe.
+      </p>
+      <form method="POST" action="{{ url_for('upload_content', course_id=course.id) }}" class="d-flex gap-2 align-items-start">
+        <input type="hidden" name="content_type" value="playlist"/>
+        <div class="flex-1 input-icon-wrap" style="flex:1">
+          <i class="fab fa-youtube input-icon" style="color:#ff4444"></i>
+          <input type="url" name="youtube_playlist_url" class="input-secel"
+                 value="{{ course.youtube_playlist_url or '' }}"
+                 placeholder="https://www.youtube.com/playlist?list=PL…"/>
+        </div>
+        <button type="submit" class="btn-secel-gold" style="height:46px;white-space:nowrap">
+          <i class="fas fa-save me-1"></i>Enregistrer
+        </button>
+      </form>
+      {% if course.youtube_playlist_url %}
+      <div class="mt-2 text-success small">
+        <i class="fas fa-check-circle me-1"></i>Playlist active :
+        <a href="{{ course.youtube_playlist_url }}" target="_blank" class="text-success">{{ course.youtube_playlist_url[:55] }}…</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════
+       Current Videos List
+  ═══════════════════════════════════════════════════ -->
+  <div class="card-secel mb-4" id="existingVideosCard">
+    <div class="card-secel-header d-flex align-items-center justify-content-between">
+      <h6><i class="fas fa-list me-2 text-gold"></i>Vidéos du cours
+        <span class="badge bg-secondary ms-2">{{ videos|length }}</span>
+      </h6>
+      <span class="text-muted small"><i class="fas fa-grip-vertical me-1"></i>Glisser pour réordonner</span>
+    </div>
+
+    {% if videos %}
+    <div class="card-secel-body p-0">
+      <div id="videoSortList" class="vsl-list">
+        {% for v in videos %}
+        <div class="vsl-item" draggable="true" data-id="{{ v.id }}">
+          <!-- Drag handle -->
+          <div class="vsl-drag"><i class="fas fa-grip-vertical"></i></div>
+
+          <!-- Order number -->
+          <div class="vsl-num">{{ loop.index }}</div>
+
+          <!-- Thumbnail / type icon -->
+          <div class="vsl-thumb">
+            {% if v.is_local %}
+              <div class="vsl-thumb-local"><i class="fas fa-hdd"></i></div>
+            {% elif v.external_url and ('youtube' in v.external_url or 'youtu.be' in v.external_url) %}
+              <div class="vsl-thumb-yt"><i class="fab fa-youtube"></i></div>
+            {% else %}
+              <div class="vsl-thumb-url"><i class="fas fa-link"></i></div>
+            {% endif %}
+          </div>
+
+          <!-- Info (editable) -->
+          <div class="vsl-info flex-1">
+            <div class="vsl-title-row">
+              <span class="vsl-title-display" data-id="{{ v.id }}">{{ v.title }}</span>
+              <span class="status-badge ms-2 {% if v.is_approved %}status-active{% else %}status-pending{% endif %}" style="font-size:.65rem">
+                {{ 'Approuvée' if v.is_approved else 'En attente' }}
+              </span>
+            </div>
+            <div class="vsl-meta text-muted small">
+              {% if v.is_local %}<span><i class="fas fa-hdd me-1"></i>Local</span>
+              {% elif v.external_url %}
+                {% if 'youtube' in v.external_url or 'youtu.be' in v.external_url %}
+                  <span style="color:#ff6b6b"><i class="fab fa-youtube me-1"></i>YouTube</span>
+                {% else %}
+                  <span><i class="fas fa-link me-1"></i>URL</span>
+                {% endif %}
+              {% endif %}
+              {% if v.duration_seconds %}<span class="ms-2"><i class="fas fa-clock me-1"></i>{{ v.duration_seconds // 60 }} min</span>{% endif %}
+              <span class="ms-2"><i class="fas fa-eye me-1"></i>{{ v.watch_count }} vues</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="vsl-actions">
+            <!-- Watch (if local/url) -->
+            {% if v.is_approved %}
+            <a href="{{ url_for('watch_video', video_id=v.id) }}" class="vsl-btn vsl-btn-view" title="Regarder" target="_blank">
+              <i class="fas fa-play"></i>
+            </a>
+            {% endif %}
+
+            <!-- Edit -->
+            <button class="vsl-btn vsl-btn-edit" title="Modifier"
+                    onclick="openEditModal({{ v.id }}, '{{ v.title|replace("'","\\'")|replace('"','\\"') }}', '{{ (v.description or '')|replace("'","\\'")|replace('"','\\"') }}', '{{ v.external_url or '' }}', {{ 'true' if v.is_local else 'false' }}, {{ v.duration_seconds or 0 }})">
+              <i class="fas fa-pen"></i>
+            </button>
+
+            {% if current_user.role == 'admin' %}
+            <!-- Approve/Reject -->
+            {% if not v.is_approved %}
+            <form action="{{ url_for('approve_video', video_id=v.id) }}" method="POST" class="d-inline">
+              <button type="submit" class="vsl-btn vsl-btn-approve" title="Approuver"><i class="fas fa-check"></i></button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('reject_video', video_id=v.id) }}" method="POST" class="d-inline">
+              <button type="submit" class="vsl-btn vsl-btn-reject" title="Refuser"><i class="fas fa-ban"></i></button>
+            </form>
+            {% endif %}
+            {% endif %}
+
+            <!-- Delete -->
+            <button class="vsl-btn vsl-btn-delete" title="Supprimer"
+                    onclick="deleteVideo({{ v.id }}, this)">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card-secel-body">
+      <div class="empty-state">
+        <i class="fas fa-film fa-3x text-muted mb-3"></i>
+        <p class="text-muted">Aucune vidéo pour ce cours. Ajoutez-en avec le constructeur ci-dessus.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PDFs section (compact) -->
+  {% if pdfs %}
+  <div class="card-secel mb-4">
+    <div class="card-secel-header"><h6><i class="fas fa-file-pdf me-2 text-danger"></i>PDF du cours</h6></div>
+    <div class="card-secel-body p-0">
+      <table class="table-secel">
+        <thead><tr><th>Titre</th><th>Statut</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for p in pdfs %}
+          <tr>
+            <td>{{ p.title }}</td>
+            <td><span class="status-badge {% if p.is_approved %}status-active{% else %}status-pending{% endif %}">{{ 'Approuvé' if p.is_approved else 'En attente' }}</span></td>
+            <td class="text-muted">{{ p.upload_date.strftime('%d/%m/%Y') if p.upload_date else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /container -->
+</div><!-- /uc-page -->
+
+<!-- ═══════════════════════════════════════════════════
+     EDIT MODAL
+═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="edit-modal">
+    <div class="edit-modal-header">
+      <h5><i class="fas fa-pen me-2 text-gold"></i>Modifier la vidéo</h5>
+      <button class="modal-close-btn" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="edit-modal-body">
+      <input type="hidden" id="editVideoId"/>
+      <div class="form-group-secel mb-3">
+        <label class="form-label-secel">Titre</label>
+        <input type="text" id="editTitle" class="input-secel" placeholder="Titre de la vidéo"/>
+      </div>
+      <div class="form-group-secel mb-3">
+        <label class="form-label-secel">Description</label>
+        <textarea id="editDesc" class="input-secel" rows="3" placeholder="Description (optionnelle)"></textarea>
+      </div>
+      <div id="editUrlGroup" class="form-group-secel mb-3">
+        <label class="form-label-secel">URL de la vidéo</label>
+        <input type="url" id="editUrl" class="input-secel" placeholder="https://youtube.com/watch?v=…"/>
+      </div>
+      <div class="form-group-secel mb-3">
+        <label class="form-label-secel">Durée (secondes)</label>
+        <input type="number" id="editDuration" class="input-secel" placeholder="Ex: 360 pour 6 min" min="0"/>
+      </div>
+    </div>
+    <div class="edit-modal-footer">
+      <button type="button" class="btn-cancel" onclick="closeEditModal()">Annuler</button>
+      <button type="button" class="btn-secel-gold" onclick="saveEdit()">
+        <i class="fas fa-save me-1"></i>Enregistrer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ENTRY TEMPLATE (hidden, cloned by JS)
+═══════════════════════════════════════════════════ -->
+<template id="entryTemplate">
+  <div class="video-entry" data-index="0">
+    <div class="ve-header">
+      <div class="ve-num">1</div>
+      <div class="ve-type-btns">
+        <button type="button" class="ve-type-btn active" data-type="local" onclick="setEntryType(this, 'local')">
+          <i class="fas fa-hdd me-1"></i>Fichier local
+        </button>
+        <button type="button" class="ve-type-btn" data-type="youtube" onclick="setEntryType(this, 'youtube')">
+          <i class="fab fa-youtube me-1"></i>YouTube
+        </button>
+        <button type="button" class="ve-type-btn" data-type="url" onclick="setEntryType(this, 'url')">
+          <i class="fas fa-link me-1"></i>Autre URL
+        </button>
+      </div>
+      <button type="button" class="ve-remove-btn" onclick="removeEntry(this)">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="ve-body">
+      <!-- Row: title + duration -->
+      <div class="ve-row">
+        <div class="ve-field flex-1">
+          <label class="ve-label">Titre *</label>
+          <input type="text" class="input-secel ve-title" placeholder="Titre de la vidéo" required/>
+        </div>
+        <div class="ve-field" style="width:130px">
+          <label class="ve-label">Durée (min)</label>
+          <input type="number" class="input-secel ve-duration" placeholder="0" min="0" step="1"/>
+        </div>
+      </div>
+
+      <!-- Description (collapsible) -->
+      <div class="ve-field mb-2">
+        <label class="ve-label">
+          <button type="button" class="ve-desc-toggle" onclick="toggleDesc(this)">
+            <i class="fas fa-chevron-right me-1 ve-desc-icon"></i>Description (optionnelle)
+          </button>
+        </label>
+        <div class="ve-desc-wrap" style="display:none">
+          <textarea class="input-secel ve-description" rows="2" placeholder="Décrivez le contenu de cette vidéo..."></textarea>
+        </div>
+      </div>
+
+      <!-- Local file zone -->
+      <div class="ve-source ve-source-local">
+        <div class="ve-drop-zone" ondragover="event.preventDefault()" ondrop="handleEntryDrop(event,this)">
+          <div class="ve-dz-inner">
+            <i class="fas fa-cloud-upload-alt fa-2x text-gold mb-2"></i>
+            <p class="mb-1 small">Glissez votre vidéo ici ou</p>
+            <label class="btn-choose-file">
+              <i class="fas fa-folder-open me-1"></i>Choisir un fichier
+              <input type="file" class="ve-file-input d-none" accept=".mp4,.avi,.mov,.wmv,.mkv,.webm" onchange="onFileChosen(this)"/>
+            </label>
+            <p class="text-muted" style="font-size:.7rem;margin-top:6px">MP4, AVI, MOV, MKV, WEBM · Max 500 MB</p>
+          </div>
+          <div class="ve-file-chosen" style="display:none">
+            <i class="fas fa-film text-gold me-2 fa-2x"></i>
+            <div>
+              <div class="ve-file-name fw-semibold"></div>
+              <div class="ve-file-size text-muted small"></div>
+            </div>
+            <button type="button" class="ve-file-clear ms-auto" onclick="clearFileChoice(this)" title="Effacer">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- YouTube URL zone -->
+      <div class="ve-source ve-source-youtube" style="display:none">
+        <div class="ve-yt-wrap">
+          <div class="input-icon-wrap">
+            <i class="fab fa-youtube input-icon" style="color:#ff4444"></i>
+            <input type="url" class="input-secel ve-yt-url" placeholder="https://www.youtube.com/watch?v=…" oninput="previewYoutube(this)"/>
+          </div>
+          <div class="ve-yt-preview" style="display:none">
+            <iframe class="ve-yt-iframe" src="" frameborder="0" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generic URL zone -->
+      <div class="ve-source ve-source-url" style="display:none">
+        <div class="input-icon-wrap">
+          <i class="fas fa-link input-icon"></i>
+          <input type="url" class="input-secel ve-generic-url" placeholder="https://…"/>
+        </div>
+      </div>
+
+      <!-- Upload Progress -->
+      <div class="ve-progress-wrap" style="display:none">
+        <div class="ve-progress-bar-bg">
+          <div class="ve-progress-bar"></div>
+        </div>
+        <div class="ve-progress-status text-muted small mt-1">En attente…</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- ─────────────── STYLES ─────────────── -->
+<style>
+/* ── Course Info Editor ──────────────────────── */
+.ci-toggle-btn {
+  background:transparent; border:1px solid var(--border); color:var(--text-muted);
+  border-radius:8px; padding:5px 10px; cursor:pointer; transition:all .15s;
+}
+.ci-toggle-btn:hover { border-color:var(--gold); color:var(--gold); }
+#ciChevron { transition:transform .3s; }
+#ciChevron.open { transform:rotate(180deg); }
+
+.ci-layout { display:flex; gap:24px; flex-wrap:wrap; }
+.ci-thumb-col { display:flex; flex-direction:column; align-items:center; gap:8px; width:160px; flex-shrink:0; }
+.ci-fields-col { flex:1; min-width:260px; display:flex; flex-direction:column; gap:0; }
+.ci-row { display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+
+/* Thumbnail zone */
+.ci-thumb-zone {
+  width:160px; height:120px; border-radius:12px; overflow:hidden; position:relative;
+  border:2px dashed var(--border); cursor:pointer; transition:border-color .2s;
+  background:var(--surface2);
+}
+.ci-thumb-zone img { width:100%; height:100%; object-fit:cover; display:block; }
+.ci-thumb-zone.drag-over { border-color:var(--gold); }
+.ci-thumb-placeholder {
+  width:100%; height:100%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:6px;
+}
+.ci-thumb-hover {
+  position:absolute; inset:0; background:rgba(0,0,0,.55); display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  color:var(--gold); font-size:.75rem; text-align:center; gap:4px;
+}
+.ci-thumb-zone:hover .ci-thumb-hover { display:flex; }
+.ci-thumb-file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+.ci-thumb-label {
+  display:inline-flex; align-items:center; background:rgba(37,99,235,.1);
+  border:1px solid rgba(37,99,235,.25); color:var(--gold); border-radius:8px;
+  padding:5px 12px; font-size:.75rem; font-weight:600; cursor:pointer; transition:all .15s;
+}
+.ci-thumb-label:hover { background:var(--gold); color:#fff; }
+
+/* Save button */
+.btn-save-course {
+  display:inline-flex; align-items:center; background:var(--gold); color:#fff;
+  border:none; border-radius:10px; padding:10px 20px; font-weight:700; font-size:.875rem;
+  cursor:pointer; transition:all .2s; width:100%;
+}
+.btn-save-course:hover { background:#1d4ed8; }
+.btn-save-course:disabled { background:#555; color:#aaa; cursor:not-allowed; }
+.ci-save-status { font-size:.8rem; margin-top:6px; min-height:18px; }
+.ci-save-ok    { color:#3fb950; }
+.ci-save-err   { color:#f85149; }
+
+/* ── Page layout ─────────────────────────────── */
+.uc-page { min-height: 100vh; background: var(--bg-dark); }
+.uc-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; }
+.uc-header-left { flex:1; min-width:0; }
+.uc-title { font-size:1.4rem; font-weight:800; margin:0; }
+.back-link { color:var(--text-muted); text-decoration:none; font-size:.85rem; }
+.back-link:hover { color:var(--gold); }
+
+.uc-header-stats { display:flex; gap:16px; }
+.uc-stat { text-align:center; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 20px; min-width:80px; }
+.uc-stat-val { font-size:1.6rem; font-weight:800; color:var(--gold); line-height:1; }
+.uc-stat-lbl { font-size:.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-top:4px; }
+
+/* ── Builder ─────────────────────────────────── */
+.entry-list { display:flex; flex-direction:column; gap:0; }
+.entry-add-row {
+  padding:16px 20px; border-top:1px solid var(--border); display:flex; align-items:center; gap:0;
+}
+.btn-add-entry {
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(37,99,235,.12); border:1.5px dashed var(--gold);
+  color:var(--gold); border-radius:10px; padding:10px 20px;
+  font-weight:600; font-size:.9rem; cursor:pointer; transition:all .2s;
+}
+.btn-add-entry:hover { background:rgba(37,99,235,.22); }
+.entry-actions {
+  padding:12px 20px; border-top:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  background:rgba(37,99,235,.04);
+}
+.entry-actions-left { display:flex; gap:10px; }
+.btn-upload-all {
+  background:var(--gold); color:#fff; border:none; border-radius:9px;
+  padding:10px 22px; font-weight:700; font-size:.9rem; cursor:pointer; transition:all .2s;
+  display:inline-flex; align-items:center;
+}
+.btn-upload-all:hover { background:#1d4ed8; }
+.btn-upload-all:disabled { background:#666; color:#aaa; cursor:not-allowed; }
+.btn-clear-all {
+  background:transparent; border:1px solid var(--border); color:var(--text-muted);
+  border-radius:9px; padding:10px 18px; cursor:pointer; font-size:.85rem; transition:all .2s;
+}
+.btn-clear-all:hover { border-color:#dc3545; color:#dc3545; }
+.upload-overall-progress { display:flex; align-items:center; min-width:200px; }
+.overall-bar-wrap { flex:1; height:8px; background:var(--border); border-radius:10px; overflow:hidden; }
+.overall-bar { height:100%; background:var(--gold); border-radius:10px; transition:width .4s; width:0; }
+
+/* ── Video Entry ─────────────────────────────── */
+.video-entry {
+  border-bottom:1px solid var(--border); padding:16px 20px;
+  animation:slideInDown .25s ease;
+}
+.video-entry:last-child { border-bottom:none; }
+@keyframes slideInDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+
+/* Status variants */
+.video-entry.ve-success { background:rgba(31,192,100,.04); }
+.video-entry.ve-error   { background:rgba(220,53,69,.04); }
+
+.ve-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.ve-num {
+  width:28px;height:28px;border-radius:50%;background:var(--gold);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex-shrink:0;
+}
+.ve-type-btns { display:flex; gap:6px; flex-wrap:wrap; flex:1; }
+.ve-type-btn {
+  border:1.5px solid var(--border); background:transparent; color:var(--text-muted);
+  border-radius:8px; padding:5px 12px; font-size:.78rem; cursor:pointer; transition:all .15s;
+  display:inline-flex; align-items:center;
+}
+.ve-type-btn.active { border-color:var(--gold); color:var(--gold); background:rgba(37,99,235,.1); }
+.ve-type-btn:hover:not(.active) { border-color:rgba(37,99,235,.4); color:var(--text-primary); }
+.ve-remove-btn {
+  background:transparent; border:1px solid var(--border); color:var(--text-muted);
+  border-radius:8px; padding:5px 10px; cursor:pointer; transition:all .15s; flex-shrink:0;
+}
+.ve-remove-btn:hover { border-color:#dc3545; color:#dc3545; background:rgba(220,53,69,.1); }
+
+.ve-body { display:flex; flex-direction:column; gap:10px; }
+.ve-row { display:flex; gap:12px; flex-wrap:wrap; }
+.ve-field { display:flex; flex-direction:column; gap:5px; }
+.ve-field.flex-1 { flex:1; min-width:180px; }
+.ve-label { font-size:.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+
+.ve-desc-toggle {
+  background:none; border:none; color:var(--text-muted); font-size:.75rem;
+  cursor:pointer; padding:0; text-transform:uppercase; letter-spacing:.4px; font-weight:600;
+  display:flex; align-items:center;
+}
+.ve-desc-toggle:hover { color:var(--gold); }
+.ve-desc-icon { transition:transform .2s; }
+.ve-desc-icon.open { transform:rotate(90deg); }
+
+/* Drop zone */
+.ve-drop-zone {
+  border:2px dashed var(--border); border-radius:12px; padding:20px;
+  text-align:center; transition:all .2s; cursor:default; background:rgba(255,255,255,.02);
+}
+.ve-drop-zone.drag-over { border-color:var(--gold); background:rgba(37,99,235,.06); }
+.ve-dz-inner { display:flex; flex-direction:column; align-items:center; }
+.btn-choose-file {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(37,99,235,.15); border:1px solid var(--gold); color:var(--gold);
+  border-radius:8px; padding:7px 16px; font-size:.82rem; font-weight:600; cursor:pointer; transition:all .2s;
+}
+.btn-choose-file:hover { background:var(--gold); color:#fff; }
+.ve-file-chosen { display:flex; align-items:center; gap:12px; padding:8px; }
+.ve-file-name { font-size:.9rem; }
+.ve-file-clear {
+  background:transparent; border:1px solid var(--border); color:var(--text-muted);
+  border-radius:6px; padding:4px 8px; cursor:pointer; transition:all .15s;
+}
+.ve-file-clear:hover { border-color:#dc3545; color:#dc3545; }
+
+/* YouTube preview */
+.ve-yt-wrap { display:flex; flex-direction:column; gap:10px; }
+.ve-yt-preview { border-radius:10px; overflow:hidden; aspect-ratio:16/9; }
+.ve-yt-iframe { width:100%; height:100%; border:0; }
+
+/* Upload progress */
+.ve-progress-wrap { margin-top:4px; }
+.ve-progress-bar-bg { height:8px; background:var(--border); border-radius:10px; overflow:hidden; }
+.ve-progress-bar { height:100%; background:linear-gradient(90deg,var(--gold),#1d4ed8); width:0; transition:width .3s; border-radius:10px; }
+.ve-status-done   { color:#3fb950; }
+.ve-status-error  { color:#dc3545; }
+
+/* ── Video Sort List (existing videos) ───────── */
+.vsl-list { display:flex; flex-direction:column; }
+.vsl-item {
+  display:flex; align-items:center; gap:12px; padding:12px 16px;
+  border-bottom:1px solid var(--border); transition:background .15s;
+}
+.vsl-item:last-child { border-bottom:none; }
+.vsl-item:hover { background:rgba(37,99,235,.03); }
+.vsl-item.dragging { opacity:.4; }
+.vsl-item.drag-over-top { border-top:2px solid var(--gold); }
+.vsl-drag { color:var(--text-muted); cursor:grab; padding:4px 2px; flex-shrink:0; }
+.vsl-drag:hover { color:var(--gold); }
+.vsl-num {
+  width:26px;height:26px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;
+  color:var(--text-muted);flex-shrink:0;
+}
+.vsl-thumb { flex-shrink:0; }
+.vsl-thumb-local,.vsl-thumb-yt,.vsl-thumb-url {
+  width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+}
+.vsl-thumb-local { background:rgba(100,116,139,.15); color:#94a3b8; }
+.vsl-thumb-yt    { background:rgba(255,68,68,.12); color:#ff4444; }
+.vsl-thumb-url   { background:rgba(59,130,246,.12); color:#60a5fa; }
+.vsl-info { min-width:0; }
+.vsl-title-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:4px; }
+.vsl-title-display { font-weight:600; font-size:.88rem; }
+.vsl-meta { font-size:.75rem; display:flex; gap:10px; flex-wrap:wrap; }
+.vsl-actions { display:flex; gap:6px; flex-shrink:0; }
+.vsl-btn {
+  width:32px;height:32px;border-radius:8px;border:1px solid var(--border);
+  background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;transition:all .15s;
+}
+.vsl-btn:hover { background:rgba(255,255,255,.08); }
+.vsl-btn-view:hover    { border-color:var(--gold); color:var(--gold); }
+.vsl-btn-edit:hover    { border-color:#60a5fa; color:#60a5fa; }
+.vsl-btn-approve:hover { border-color:#3fb950; color:#3fb950; background:rgba(63,185,80,.1); }
+.vsl-btn-reject:hover  { border-color:#dc3545; color:#dc3545; background:rgba(220,53,69,.1); }
+.vsl-btn-delete:hover  { border-color:#dc3545; color:#dc3545; background:rgba(220,53,69,.1); }
+.vsl-btn-approve { border-color:rgba(63,185,80,.4); color:#3fb950; }
+.vsl-btn-delete  { border-color:rgba(220,53,69,.3); color:#dc3545; }
+.status-pending  { background:rgba(245,158,11,.15); color:#f59e0b; border:1px solid rgba(245,158,11,.3); border-radius:20px; padding:2px 8px; font-size:.7rem; font-weight:600; }
+
+/* ── Edit Modal ──────────────────────────────── */
+.modal-overlay {
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:16px;
+}
+.modal-overlay.open { display:flex; animation:fadeIn .2s ease; }
+.edit-modal {
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  width:100%;max-width:520px;overflow:hidden;
+}
+.edit-modal-header {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);
+}
+.edit-modal-header h5 { margin:0;font-size:1rem;font-weight:700; }
+.modal-close-btn {
+  background:transparent;border:1px solid var(--border);color:var(--text-muted);
+  border-radius:8px;padding:5px 9px;cursor:pointer;transition:all .15s;
+}
+.modal-close-btn:hover { border-color:#dc3545;color:#dc3545; }
+.edit-modal-body { padding:20px; }
+.edit-modal-footer {
+  padding:14px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;background:var(--surface2);
+}
+.btn-cancel {
+  background:transparent;border:1px solid var(--border);color:var(--text-muted);
+  border-radius:9px;padding:8px 18px;cursor:pointer;transition:all .15s;font-size:.9rem;
+}
+.btn-cancel:hover { border-color:var(--text-primary);color:var(--text-primary); }
+
+/* ── YouTube Playlist Card ─────────────────── */
+.yt-playlist-card { border-color:rgba(255,68,68,.2) !important; }
+
+/* ── Empty state ─────────────────────────────── */
+.empty-state { text-align:center;padding:40px 20px; }
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width:640px) {
+  .uc-header { flex-direction:column; }
+  .uc-header-stats { align-self:stretch; justify-content:center; }
+  .ve-row { flex-direction:column; }
+  .vsl-actions { flex-wrap:wrap; }
+}
+</style>
+
+{% endblock %}
+
+<!-- ═════════════════════════════════════════════
+     JAVASCRIPT
+═════════════════════════════════════════════ -->
+{% block extra_js %}
+<script>
+(function(){
+'use strict';
+
+const COURSE_ID   = {{ course.id }};
+const UPDATE_URL  = '{{ url_for("update_course", course_id=course.id) }}';
+const UPLOAD_URL = '{{ url_for("upload_content", course_id=course.id) }}';
+const EDIT_URL   = '/teacher/video/';          // + id + '/edit'
+const DELETE_URL = '/teacher/video/';          // + id + '/delete'
+const REORDER_URL = '{{ url_for("reorder_videos", course_id=course.id) }}';
+
+let entryCounter = 0;
+let entries = [];   // {index, el}
+
+// ════════════════════════════════════════
+//  ADD / REMOVE ENTRIES
+// ════════════════════════════════════════
+function addVideoEntry() {
+  entryCounter++;
+  const tmpl   = document.getElementById('entryTemplate');
+  const clone  = tmpl.content.cloneNode(true);
+  const el     = clone.querySelector('.video-entry');
+  el.dataset.index = entryCounter;
+  el.querySelector('.ve-num').textContent = entries.length + 1;
+  document.getElementById('videoEntryList').appendChild(el);
+  entries.push({ index: entryCounter, el });
+  refreshEntryUI();
+  // Scroll into view
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+window.addVideoEntry = addVideoEntry;
+
+window.removeEntry = function(btn) {
+  const entry = btn.closest('.video-entry');
+  const idx   = parseInt(entry.dataset.index);
+  entries = entries.filter(e => e.index !== idx);
+  entry.remove();
+  renumberEntries();
+  refreshEntryUI();
+};
+
+window.clearAllEntries = function() {
+  document.getElementById('videoEntryList').innerHTML = '';
+  entries = [];
+  refreshEntryUI();
+};
+
+function renumberEntries() {
+  document.querySelectorAll('.video-entry').forEach((el, i) => {
+    el.querySelector('.ve-num').textContent = i + 1;
+  });
+}
+
+function refreshEntryUI() {
+  const count = entries.length;
+  document.getElementById('entryCountLabel').textContent = count + ' vidéo(s) dans la file';
+  document.getElementById('entryCount').textContent = count;
+  document.getElementById('entryActionsBar').style.display = count > 0 ? 'flex' : 'none';
+}
+
+// ════════════════════════════════════════
+//  TYPE SWITCHER
+// ════════════════════════════════════════
+window.setEntryType = function(btn, type) {
+  const entry = btn.closest('.video-entry');
+  entry.querySelectorAll('.ve-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  entry.querySelectorAll('.ve-source').forEach(s => s.style.display = 'none');
+  const map = { local: '.ve-source-local', youtube: '.ve-source-youtube', url: '.ve-source-url' };
+  const src = entry.querySelector(map[type]);
+  if (src) src.style.display = 'block';
+};
+
+// ════════════════════════════════════════
+//  FILE HANDLING
+// ════════════════════════════════════════
+window.onFileChosen = function(input) {
+  const entry = input.closest('.video-entry');
+  const file  = input.files[0];
+  if (!file) return;
+  const inner  = entry.querySelector('.ve-dz-inner');
+  const chosen = entry.querySelector('.ve-file-chosen');
+  inner.style.display  = 'none';
+  chosen.style.display = 'flex';
+  chosen.querySelector('.ve-file-name').textContent = file.name;
+  chosen.querySelector('.ve-file-size').textContent = formatSize(file.size);
+  // Auto-fill title if empty
+  const titleInp = entry.querySelector('.ve-title');
+  if (!titleInp.value.trim()) {
+    titleInp.value = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
+  }
+};
+
+window.clearFileChoice = function(btn) {
+  const entry = btn.closest('.video-entry');
+  const inner  = entry.querySelector('.ve-dz-inner');
+  const chosen = entry.querySelector('.ve-file-chosen');
+  const input  = entry.querySelector('.ve-file-input');
+  inner.style.display  = 'flex';
+  chosen.style.display = 'none';
+  input.value = '';
+};
+
+window.handleEntryDrop = function(e, zone) {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  const file  = e.dataTransfer.files[0];
+  if (!file) return;
+  const entry = zone.closest('.video-entry');
+  const input = entry.querySelector('.ve-file-input');
+  const dt    = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  onFileChosen(input);
+};
+
+// Drag over / leave for drop zone
+document.addEventListener('dragenter', e => {
+  const dz = e.target.closest('.ve-drop-zone');
+  if (dz) dz.classList.add('drag-over');
+});
+document.addEventListener('dragleave', e => {
+  const dz = e.target.closest('.ve-drop-zone');
+  if (dz && !dz.contains(e.relatedTarget)) dz.classList.remove('drag-over');
+});
+
+// ════════════════════════════════════════
+//  YOUTUBE PREVIEW
+// ════════════════════════════════════════
+window.previewYoutube = function(input) {
+  const entry   = input.closest('.video-entry');
+  const preview = entry.querySelector('.ve-yt-preview');
+  const iframe  = entry.querySelector('.ve-yt-iframe');
+  const url     = input.value.trim();
+  const vid     = extractYoutubeId(url);
+  if (vid) {
+    iframe.src = `https://www.youtube.com/embed/${vid}?rel=0&modestbranding=1`;
+    preview.style.display = 'block';
+    // Auto-fill title
+    const titleInp = entry.querySelector('.ve-title');
+    if (!titleInp.value.trim()) titleInp.value = 'Vidéo YouTube';
+  } else {
+    preview.style.display = 'none';
+    iframe.src = '';
+  }
+};
+
+function extractYoutubeId(url) {
+  if (!url) return null;
+  let m;
+  m = url.match(/[?&]v=([^&]+)/);  if (m) return m[1];
+  m = url.match(/youtu\.be\/([^?]+)/); if (m) return m[1];
+  m = url.match(/\/shorts\/([^?]+)/);  if (m) return m[1];
+  m = url.match(/\/embed\/([^?]+)/);   if (m) return m[1];
+  return null;
+}
+
+// ════════════════════════════════════════
+//  DESCRIPTION TOGGLE
+// ════════════════════════════════════════
+window.toggleDesc = function(btn) {
+  const wrap = btn.closest('.ve-field').querySelector('.ve-desc-wrap');
+  const icon = btn.querySelector('.ve-desc-icon');
+  const open = wrap.style.display === 'none';
+  wrap.style.display = open ? 'block' : 'none';
+  icon.classList.toggle('open', open);
+};
+
+// ════════════════════════════════════════
+//  UPLOAD ALL (sequential AJAX)
+// ════════════════════════════════════════
+window.uploadAll = async function() {
+  const entryEls = document.querySelectorAll('.video-entry');
+  if (!entryEls.length) return;
+
+  const btn = document.getElementById('btnUploadAll');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Upload en cours…';
+
+  const overall = document.getElementById('overallProgress');
+  const bar     = document.getElementById('overallBar');
+  const lbl     = document.getElementById('overallLabel');
+  overall.style.display = 'flex';
+
+  let done = 0;
+  const total = entryEls.length;
+
+  for (const el of entryEls) {
+    await uploadEntry(el);
+    done++;
+    const pct = Math.round((done / total) * 100);
+    bar.style.width = pct + '%';
+    lbl.textContent = pct + '%';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check me-2"></i>Terminé !';
+  setTimeout(() => {
+    btn.innerHTML = '<i class="fas fa-upload me-2"></i>Uploader tout (<span id="entryCount">0</span>)';
+    btn.disabled  = false;
+    overall.style.display = 'none';
+    bar.style.width = '0';
+  }, 3000);
+};
+
+async function uploadEntry(el) {
+  const titleVal = el.querySelector('.ve-title').value.trim();
+  const descVal  = el.querySelector('.ve-description').value.trim();
+  const durMin   = parseFloat(el.querySelector('.ve-duration').value) || 0;
+  const durSec   = Math.round(durMin * 60);
+  const activeTypeBtn = el.querySelector('.ve-type-btn.active');
+  const type     = activeTypeBtn ? activeTypeBtn.dataset.type : 'local';
+
+  const progressWrap = el.querySelector('.ve-progress-wrap');
+  const progressBar  = el.querySelector('.ve-progress-bar');
+  const statusDiv    = el.querySelector('.ve-progress-status');
+  progressWrap.style.display = 'block';
+  statusDiv.textContent = 'Envoi en cours…';
+  statusDiv.className = 've-progress-status text-muted small mt-1';
+  progressBar.style.width = '10%';
+
+  const formData = new FormData();
+  formData.append('content_type', 'video');
+  formData.append('title', titleVal || 'Vidéo sans titre');
+  formData.append('description', descVal);
+  formData.append('duration_seconds', durSec);
+
+  if (type === 'local') {
+    const fileInput = el.querySelector('.ve-file-input');
+    if (!fileInput.files[0]) {
+      setEntryError(el, progressBar, statusDiv, 'Aucun fichier sélectionné');
+      return;
+    }
+    formData.append('video_type', 'local');
+    formData.append('video_file', fileInput.files[0]);
+  } else {
+    const urlInput = type === 'youtube'
+      ? el.querySelector('.ve-yt-url')
+      : el.querySelector('.ve-generic-url');
+    const urlVal = urlInput ? urlInput.value.trim() : '';
+    if (!urlVal) {
+      setEntryError(el, progressBar, statusDiv, 'URL manquante');
+      return;
+    }
+    formData.append('video_type', 'online');
+    formData.append('external_url', urlVal);
+  }
+
+  // Simulate progress animation for local files (no real progress events in fetch)
+  let fakeProgress = 10;
+  const ticker = type === 'local' ? setInterval(() => {
+    fakeProgress = Math.min(fakeProgress + 8, 85);
+    progressBar.style.width = fakeProgress + '%';
+  }, 400) : null;
+
+  try {
+    const resp = await fetch(UPLOAD_URL, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: formData
+    });
+    if (ticker) clearInterval(ticker);
+    const data = await resp.json();
+    if (data.success) {
+      progressBar.style.width = '100%';
+      statusDiv.textContent = '✓ ' + data.message;
+      statusDiv.className = 've-progress-status ve-status-done small mt-1';
+      el.classList.add('ve-success');
+      // Remove entry from "entries" array
+      const idx = parseInt(el.dataset.index);
+      entries = entries.filter(e => e.index !== idx);
+      // Add new row to the existing video list
+      appendVideoRow(data);
+      refreshEntryUI();
+    } else {
+      setEntryError(el, progressBar, statusDiv, data.message || 'Erreur');
+    }
+  } catch (err) {
+    if (ticker) clearInterval(ticker);
+    setEntryError(el, progressBar, statusDiv, 'Erreur réseau');
+  }
+}
+
+function setEntryError(el, bar, status, msg) {
+  bar.style.width = '100%';
+  bar.style.background = '#dc3545';
+  status.textContent = '✗ ' + msg;
+  status.className = 've-progress-status ve-status-error small mt-1';
+  el.classList.add('ve-error');
+}
+
+function appendVideoRow(data) {
+  const list = document.getElementById('videoSortList');
+  if (!list) return;
+  const count = list.querySelectorAll('.vsl-item').length + 1;
+  const html = `
+    <div class="vsl-item" draggable="true" data-id="${data.video_id}">
+      <div class="vsl-drag"><i class="fas fa-grip-vertical"></i></div>
+      <div class="vsl-num">${count}</div>
+      <div class="vsl-thumb">
+        <div class="vsl-thumb-${data.is_local ? 'local' : 'yt'}">
+          <i class="${data.is_local ? 'fas fa-hdd' : 'fab fa-youtube'}"></i>
+        </div>
+      </div>
+      <div class="vsl-info flex-1">
+        <div class="vsl-title-row">
+          <span class="vsl-title-display" data-id="${data.video_id}">${escHtml(data.title)}</span>
+          <span class="status-badge status-pending ms-2" style="font-size:.65rem">En attente</span>
+        </div>
+        <div class="vsl-meta text-muted small">
+          <span>${data.is_local ? '<i class="fas fa-hdd me-1"></i>Local' : '<i class="fab fa-youtube me-1"></i>YouTube'}</span>
+        </div>
+      </div>
+      <div class="vsl-actions">
+        <button class="vsl-btn vsl-btn-edit" title="Modifier"
+          onclick="openEditModal(${data.video_id}, '${escHtml(data.title)}', '', '', ${data.is_local}, 0)">
+          <i class="fas fa-pen"></i>
+        </button>
+        <button class="vsl-btn vsl-btn-delete" title="Supprimer"
+          onclick="deleteVideo(${data.video_id}, this)">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>`;
+  list.insertAdjacentHTML('beforeend', html);
+  initDragDrop();  // re-init drag
+  // Remove empty state if present
+  const empty = document.querySelector('#existingVideosCard .empty-state');
+  if (empty) empty.closest('.card-secel-body').innerHTML = `<div class="vsl-list" id="videoSortList">${list.outerHTML === '<div id="videoSortList"></div>' ? '' : ''}</div>`;
+}
+
+// ════════════════════════════════════════
+//  EDIT MODAL
+// ════════════════════════════════════════
+window.openEditModal = function(id, title, desc, url, isLocal, dur) {
+  document.getElementById('editVideoId').value  = id;
+  document.getElementById('editTitle').value    = title;
+  document.getElementById('editDesc').value     = desc;
+  document.getElementById('editUrl').value      = url;
+  document.getElementById('editDuration').value = dur;
+  document.getElementById('editUrlGroup').style.display = isLocal ? 'none' : 'block';
+  document.getElementById('editModal').classList.add('open');
+};
+
+window.closeEditModal = function() {
+  document.getElementById('editModal').classList.remove('open');
+};
+
+window.saveEdit = async function() {
+  const id    = document.getElementById('editVideoId').value;
+  const title = document.getElementById('editTitle').value.trim();
+  const desc  = document.getElementById('editDesc').value.trim();
+  const url   = document.getElementById('editUrl').value.trim();
+  const dur   = document.getElementById('editDuration').value;
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', desc);
+  if (url) fd.append('external_url', url);
+  if (dur) fd.append('duration_seconds', dur);
+
+  try {
+    const resp = await fetch(`${EDIT_URL}${id}/edit`, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd
+    });
+    const data = await resp.json();
+    if (data.success) {
+      // Update display title
+      const span = document.querySelector(`.vsl-title-display[data-id="${id}"]`);
+      if (span) span.textContent = data.title;
+      closeEditModal();
+      showToast('Vidéo mise à jour !', 'success');
+    } else {
+      showToast('Erreur lors de la mise à jour.', 'error');
+    }
+  } catch {
+    showToast('Erreur réseau.', 'error');
+  }
+};
+
+// ════════════════════════════════════════
+//  DELETE VIDEO
+// ════════════════════════════════════════
+window.deleteVideo = async function(id, btn) {
+  if (!confirm('Supprimer définitivement cette vidéo ?')) return;
+  const row = btn.closest('.vsl-item');
+  row.style.opacity = '.4';
+  try {
+    const resp = await fetch(`${DELETE_URL}${id}/delete`, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    });
+    const data = await resp.json();
+    if (data.success) {
+      row.remove();
+      renumberSortList();
+      showToast('Vidéo supprimée.', 'success');
+    } else {
+      row.style.opacity = '1';
+      showToast('Erreur.', 'error');
+    }
+  } catch {
+    row.style.opacity = '1';
+    showToast('Erreur réseau.', 'error');
+  }
+};
+
+function renumberSortList() {
+  document.querySelectorAll('#videoSortList .vsl-item').forEach((el, i) => {
+    el.querySelector('.vsl-num').textContent = i + 1;
+  });
+}
+
+// ════════════════════════════════════════
+//  DRAG-AND-DROP REORDER (existing videos)
+// ════════════════════════════════════════
+let dragSrc = null;
+
+function initDragDrop() {
+  document.querySelectorAll('#videoSortList .vsl-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      document.querySelectorAll('.vsl-item').forEach(i => i.classList.remove('drag-over-top'));
+      saveNewOrder();
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (item === dragSrc) return;
+      document.querySelectorAll('.vsl-item').forEach(i => i.classList.remove('drag-over-top'));
+      item.classList.add('drag-over-top');
+      const list = item.parentNode;
+      const items = [...list.querySelectorAll('.vsl-item:not(.dragging)')];
+      const next  = items.find(i => i === item);
+      if (next) list.insertBefore(dragSrc, next);
+    });
+  });
+}
+
+function saveNewOrder() {
+  const order = [...document.querySelectorAll('#videoSortList .vsl-item')]
+    .map(el => el.dataset.id);
+  renumberSortList();
+  fetch(REORDER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify({ order })
+  }).catch(() => {});
+}
+
+initDragDrop();
+
+// ════════════════════════════════════════
+//  TOAST NOTIFICATION
+// ════════════════════════════════════════
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = `flash-alert flash-${type === 'success' ? 'success' : 'danger'}`;
+  t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${msg}
+    <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>`;
+  let fc = document.querySelector('.flash-container');
+  if (!fc) {
+    fc = document.createElement('div');
+    fc.className = 'flash-container';
+    document.querySelector('.navbar') ? document.querySelector('.navbar').insertAdjacentElement('afterend', fc) : document.body.prepend(fc);
+  }
+  fc.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 4000);
+}
+
+// ════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════
+function formatSize(bytes) {
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ════════════════════════════════════════
+//  COURSE INFO EDITOR
+// ════════════════════════════════════════
+window.toggleCourseInfo = function() {
+  const body    = document.getElementById('courseInfoBody');
+  const chevron = document.getElementById('ciChevron');
+  const open    = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chevron.classList.toggle('open', !open);
+};
+
+window.previewThumb = function(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('ciThumbPreview');
+    const ph  = document.getElementById('ciThumbPlaceholder');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+};
+
+window.handleThumbDrop = function(e) {
+  e.preventDefault();
+  const zone = document.getElementById('ciThumbZone');
+  zone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const inp = document.getElementById('ciThumbInput');
+  const dt  = new DataTransfer();
+  dt.items.add(file);
+  inp.files = dt.files;
+  previewThumb(inp);
+};
+
+window.saveCourseInfo = async function() {
+  const btn    = document.getElementById('btnSaveCourse');
+  const status = document.getElementById('ciSaveStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enregistrement…';
+  status.textContent = '';
+
+  const form = document.getElementById('courseInfoForm');
+  const fd   = new FormData(form);
+
+  try {
+    const resp = await fetch(UPDATE_URL, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd
+    });
+    const data = await resp.json();
+    if (data.success) {
+      status.className = 'ci-save-status ci-save-ok';
+      status.innerHTML = '<i class="fas fa-check-circle me-1"></i>' + data.message;
+      // Update page title display
+      if (data.title) {
+        document.querySelectorAll('.uc-title').forEach(el => {
+          const strong = el.closest('.uc-header-left')?.querySelector('strong');
+          if (strong) strong.textContent = data.title;
+        });
+      }
+      showToast('Cours mis à jour !', 'success');
+    } else {
+      status.className = 'ci-save-status ci-save-err';
+      status.innerHTML = '<i class="fas fa-times-circle me-1"></i>Erreur';
+    }
+  } catch {
+    status.className = 'ci-save-status ci-save-err';
+    status.textContent = 'Erreur réseau';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-save me-2"></i>Enregistrer les modifications';
+};
+
+// Add first entry automatically
+addVideoEntry();
+
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}SECEL Admin{% endblock %}</title>
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}"/>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}"/>
+  <meta name="theme-color" content="#2563eb"/>
+  <!-- Token CSRF — protège tous les formulaires POST -->
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}"/>
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="admin-body">
+
+<!-- ═══════════════════ ADMIN SIDEBAR ═══════════════════ -->
+<aside class="admin-sidebar" id="adminSidebar">
+  <div class="admin-sidebar-header">
+    <!-- SECEL Admin Logo -->
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-brand">
+      <div class="admin-logo-emblem">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:44px;height:44px">
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#2563eb"/>
+              <stop offset="100%" stop-color="#1d4ed8"/>
+            </linearGradient>
+          </defs>
+          <rect width="44" height="44" rx="11" fill="url(#logoGrad)"/>
+          <!-- Mortarboard cap -->
+          <polygon points="22,9 34,15.5 22,22 10,15.5" fill="#ffffff"/>
+          <!-- Diploma arc -->
+          <path d="M13 18 Q13 28 22 31 Q31 28 31 18" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
+          <!-- Tassel pole -->
+          <line x1="10" y1="15.5" x2="10" y2="28" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Tassel ball -->
+          <circle cx="10" cy="30.5" r="2.5" fill="#FFDC00"/>
+          <!-- Shine -->
+          <ellipse cx="17" cy="13" rx="5" ry="2" fill="#ffffff" opacity=".15" transform="rotate(-20 17 13)"/>
+        </svg>
+      </div>
+      <div class="admin-brand-text">
+        <span class="admin-brand-name">SECEL</span>
+        <span class="admin-brand-role">Administration</span>
+      </div>
+    </a>
+  </div>
+
+  <!-- Admin User -->
+  <div class="admin-user-card">
+    <div class="admin-user-avatar">{{ (current_user.full_name or current_user.username)[0].upper() }}</div>
+    <div class="admin-user-info">
+      <div class="admin-user-name">{{ current_user.full_name or current_user.username }}</div>
+      <div class="admin-user-status"><span class="online-dot"></span>En ligne · Admin</div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="admin-nav">
+    <div class="admin-nav-section">PRINCIPAL</div>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-chart-pie"></i></span>
+      <span>Tableau de bord</span>
+    </a>
+    <a href="{{ url_for('admin_users') }}" class="admin-nav-link {% if request.endpoint == 'admin_users' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-users"></i></span>
+      <span>Utilisateurs</span>
+    </a>
+    <a href="{{ url_for('courses') }}" class="admin-nav-link">
+      <span class="nav-icon"><i class="fas fa-book-open"></i></span>
+      <span>Cours</span>
+    </a>
+    <a href="{{ url_for('admin_payments') }}" class="admin-nav-link {% if request.endpoint == 'admin_payments' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-credit-card"></i></span>
+      <span>Paiements</span>
+      {% if pending_payments_count is defined and pending_payments_count > 0 %}
+      <span class="admin-badge">{{ pending_payments_count }}</span>
+      {% endif %}
+    </a>
+
+    <a href="{{ url_for('admin_enrollments') }}" class="admin-nav-link {% if request.endpoint == 'admin_enrollments' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-user-graduate"></i></span>
+      <span>Inscriptions</span>
+    </a>
+
+    <div class="admin-nav-section mt-3">VALIDATION</div>
+    <a href="{{ url_for('admin_courses_approval') }}" class="admin-nav-link {% if request.endpoint == 'admin_courses_approval' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-graduation-cap"></i></span>
+      <span>Cours à approuver</span>
+      {% if pending_courses_count is defined and pending_courses_count > 0 %}
+      <span class="admin-badge admin-badge-danger">{{ pending_courses_count }}</span>
+      {% endif %}
+    </a>
+    <a href="{{ url_for('admin_dashboard') }}#pending" class="admin-nav-link" id="navPending">
+      <span class="nav-icon"><i class="fas fa-clock"></i></span>
+      <span>Vidéos en attente</span>
+      {% if pending_count is defined and pending_count > 0 %}
+      <span class="admin-badge admin-badge-danger">{{ pending_count }}</span>
+      {% endif %}
+    </a>
+
+    <div class="admin-nav-section mt-3">ACTIONS</div>
+    <a href="{{ url_for('new_course') }}" class="admin-nav-link {% if request.endpoint == 'new_course' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-plus-circle"></i></span>
+      <span>Créer un cours</span>
+    </a>
+    <a href="{{ url_for('admin_add_user') }}" class="admin-nav-link {% if request.endpoint == 'admin_add_user' %}active{% endif %}">
+      <span class="nav-icon"><i class="fas fa-user-plus"></i></span>
+      <span>Ajouter utilisateur</span>
+    </a>
+    <a href="{{ url_for('index') }}" class="admin-nav-link" target="_blank">
+      <span class="nav-icon"><i class="fas fa-external-link-alt"></i></span>
+      <span>Voir le site</span>
+    </a>
+
+    <div class="admin-nav-section mt-3">COMPTE</div>
+    <a href="{{ url_for('logout') }}" class="admin-nav-link admin-nav-danger">
+      <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
+      <span>Déconnexion</span>
+    </a>
+  </nav>
+</aside>
+
+<!-- ═══════════════════ ADMIN MAIN ═══════════════════ -->
+<div class="admin-layout" id="adminLayout">
+
+  <!-- Top Bar -->
+  <header class="admin-topbar">
+    <button class="admin-menu-toggle" id="adminMenuToggle">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="admin-topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <div class="admin-topbar-right">
+      <!-- Notifications -->
+      <div class="dropdown" id="notifDropdown">
+        <button class="admin-topbar-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                id="notifToggle" aria-expanded="false">
+          <i class="fas fa-bell"></i>
+          <span class="notif-badge" id="notifBadge" style="{{ 'display:none' if unread_count == 0 else '' }}">
+            {{ unread_count if unread_count > 0 else '' }}
+          </span>
+        </button>
+
+        <div class="dropdown-menu dropdown-menu-end notif-panel" id="notifPanel">
+          <!-- Header -->
+          <div class="notif-header">
+            <div class="notif-header-left">
+              <i class="fas fa-bell me-2 text-gold"></i>
+              <span>Notifications</span>
+              <span class="notif-count-pill" id="notifCountPill">{{ unread_count }}</span>
+            </div>
+            <button class="notif-mark-all-btn" id="markAllReadBtn" title="Tout marquer comme lu"
+                    onclick="markAllRead()" {{ 'disabled' if unread_count == 0 else '' }}>
+              <i class="fas fa-check-double me-1"></i>Tout lire
+            </button>
+          </div>
+
+          <!-- Liste -->
+          <div class="notif-list" id="notifList">
+            {% for n in notifications %}
+            <div class="notif-item notif-{{ n.notif_type }}" id="notif-{{ n.id }}">
+              <div class="notif-icon-wrap notif-icon-{{ n.notif_type }}">
+                <i class="fas {% if n.notif_type=='success' %}fa-check-circle{% elif n.notif_type=='warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+              </div>
+              <div class="notif-body">
+                <p class="notif-msg">{{ n.message[:80] }}{% if n.message|length > 80 %}…{% endif %}</p>
+                <span class="notif-time">
+                  <i class="fas fa-clock me-1"></i>{{ n.created_at.strftime('%d/%m %H:%M') if n.created_at else '—' }}
+                </span>
+              </div>
+              <button class="notif-dismiss" onclick="markRead({{ n.id }})" title="Marquer comme lu">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            {% else %}
+            <div class="notif-empty" id="notifEmpty">
+              <i class="fas fa-bell-slash fa-2x mb-2 text-muted"></i>
+              <p class="text-muted small mb-0">Aucune notification</p>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Footer -->
+          <div class="notif-footer">
+            <span class="text-muted" style="font-size:.72rem;">Mis à jour automatiquement</span>
+          </div>
+        </div>
+      </div>
+      <!-- Admin profile -->
+      <div class="dropdown">
+        <button class="admin-user-btn" data-bs-toggle="dropdown">
+          <div class="admin-user-avatar-sm">{{ (current_user.full_name or 'A')[0].upper() }}</div>
+          <span class="d-none d-md-inline">{{ current_user.full_name or current_user.username }}</span>
+          <i class="fas fa-chevron-down ms-1 small"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="fas fa-user me-2" style="color:#2563eb"></i>Profil</a></li>
+          <li><hr class="dropdown-divider border-secondary"/></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Déconnexion</a></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flash-container">
+    {% for cat, msg in messages %}
+    <div class="flash-alert flash-{{ cat }}">
+      <i class="fas {% if cat=='success' %}fa-check-circle{% elif cat=='danger' %}fa-exclamation-circle{% elif cat=='warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} me-2"></i>
+      {{ msg }}
+      <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- Page Content -->
+  <main class="admin-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="admin-footer">
+    <span>&copy; {{ now.year }} SECEL Administration · Tous droits réservés</span>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+// ── Sidebar mobile ───────────────────────────────────────────
+document.getElementById('adminMenuToggle')?.addEventListener('click', () => {
+  document.getElementById('adminSidebar').classList.toggle('open');
+  document.getElementById('adminLayout').classList.toggle('sidebar-open');
+});
+// Auto-dismiss flashes
+document.querySelectorAll('.flash-alert').forEach(a => {
+  setTimeout(() => { a.style.opacity='0'; setTimeout(()=>a.remove(),400); }, 5000);
+});
+
+// ── Notifications ─────────────────────────────────────────────
+function updateBadge(count) {
+  const badge = document.getElementById('notifBadge');
+  const pill  = document.getElementById('notifCountPill');
+  const btn   = document.getElementById('markAllReadBtn');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = '';
+    if (pill) pill.textContent = count;
+    if (btn)  btn.disabled = false;
+  } else {
+    badge.style.display = 'none';
+    if (pill) pill.textContent = '0';
+    if (btn)  btn.disabled = true;
+  }
+}
+
+function markRead(nid) {
+  fetch(`/notifications/mark-read/${nid}`, { method: 'POST' })
+    .then(() => {
+      const el = document.getElementById(`notif-${nid}`);
+      if (el) { el.style.opacity = '0'; setTimeout(() => { el.remove(); checkEmpty(); }, 300); }
+      const badge = document.getElementById('notifBadge');
+      const cur = parseInt(badge?.textContent || '0');
+      updateBadge(Math.max(0, cur - 1));
+    });
+}
+
+function markAllRead() {
+  fetch('/notifications/mark-all-read', { method: 'POST' })
+    .then(() => {
+      document.querySelectorAll('#notifList .notif-item').forEach(el => {
+        el.style.opacity = '0'; setTimeout(() => el.remove(), 300);
+      });
+      setTimeout(checkEmpty, 350);
+      updateBadge(0);
+    });
+}
+
+function checkEmpty() {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+  if (!list.querySelector('.notif-item')) {
+    if (!document.getElementById('notifEmpty')) {
+      list.innerHTML = `<div class="notif-empty" id="notifEmpty">
+        <i class="fas fa-bell-slash fa-2x mb-2 text-muted"></i>
+        <p class="text-muted small mb-0">Aucune notification</p>
+      </div>`;
+    }
+  }
+}
+
+function timeAgo(isoStr) {
+  const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
+  if (diff < 60)   return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff/60)}min`;
+  if (diff < 86400)return `${Math.floor(diff/3600)}h`;
+  return `${Math.floor(diff/86400)}j`;
+}
+
+// Polling toutes les 30 secondes
+function pollNotifications() {
+  fetch('/api/notifications/count')
+    .then(r => r.json())
+    .then(data => {
+      updateBadge(data.count);
+    })
+    .catch(() => {});
+}
+setInterval(pollNotifications, 30000);
+</script>
+{% block extra_js %}{% endblock %}
+
+<script>
+/* ── Protection CSRF globale (admin) ─────────────────────────────────────── */
+(function () {
+  'use strict';
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')
+                              ?.getAttribute('content') || '';
+  if (!csrfToken) return;
+
+  function injectCsrf(root) {
+    root.querySelectorAll('form').forEach(function (form) {
+      const method = (form.getAttribute('method') || '').toUpperCase();
+      if (method === 'POST' && !form.querySelector('input[name="csrf_token"]')) {
+        const inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = 'csrf_token';
+        inp.value = csrfToken;
+        form.appendChild(inp);
+      }
+    });
+  }
+  injectCsrf(document);
+  new MutationObserver(function (muts) {
+    muts.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType === 1) injectCsrf(n.querySelectorAll ? n : document);
+      });
+    });
+  }).observe(document.body, { childList: true, subtree: true });
+
+  const _fetch = window.fetch;
+  window.fetch = function (url, opts) {
+    opts = opts || {};
+    if (['POST','PUT','PATCH','DELETE'].includes((opts.method || 'GET').toUpperCase())) {
+      opts.headers = Object.assign({ 'X-CSRFToken': csrfToken }, opts.headers || {});
+    }
+    return _fetch(url, opts);
+  };
+
+  const _open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method) {
+    this._csrfMethod = method.toUpperCase();
+    return _open.apply(this, arguments);
+  };
+  const _send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function () {
+    if (['POST','PUT','PATCH','DELETE'].includes(this._csrfMethod)) {
+      this.setRequestHeader('X-CSRFToken', csrfToken);
+    }
+    return _send.apply(this, arguments);
+  };
+})();
+</script>
+</body>
+</html>

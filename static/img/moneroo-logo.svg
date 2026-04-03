@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Cercle gris clair comme dans le vrai logo -->
+  <circle cx="50" cy="50" r="50" fill="#EBEBEB"/>
+  <!-- Barre gauche bleue -->
+  <rect x="19" y="21" width="19" height="58" rx="3" fill="#1B65E5"/>
+  <!-- Triangle bleu supérieur gauche (diagonal haut du N) -->
+  <polygon points="38,21 62,21 38,79" fill="#1B65E5"/>
+  <!-- Triangle jaune inférieur droit (diagonal bas du N) -->
+  <polygon points="62,21 62,79 38,79" fill="#F5C400"/>
+  <!-- Barre droite jaune -->
+  <rect x="62" y="21" width="19" height="58" rx="3" fill="#F5C400"/>
+</svg>

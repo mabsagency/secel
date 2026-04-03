@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% block title %}Paiement en attente — SECEL{% endblock %}
+
+{% block content %}
+<div class="pay-result-wrap">
+  <div class="pay-result-card">
+
+    <!-- Icône en attente -->
+    <div class="pr-icon-wrap pr-pending-icon">
+      <div class="pr-spinner"></div>
+      <i class="fas fa-clock pr-clock"></i>
+    </div>
+
+    <h2 class="pr-title">Paiement en cours…</h2>
+    <p class="pr-sub">
+      Votre paiement est en cours de traitement. Cela peut prendre quelques secondes.
+      <br><strong>Ne fermez pas cette page.</strong>
+    </p>
+
+    <!-- Barre de progression auto -->
+    <div class="pr-progress-wrap">
+      <div class="pr-progress-bar" id="progressBar"></div>
+    </div>
+    <p class="pr-progress-lbl" id="statusLbl">Vérification en cours…</p>
+
+    <!-- Récapitulatif -->
+    <div class="pr-recap">
+      <div class="pr-recap-row">
+        <span><i class="fas fa-book-open me-2 text-warning"></i>Formation</span>
+        <span class="fw-bold">{{ course.title[:50] }}</span>
+      </div>
+      {% if reference %}
+      <div class="pr-recap-row">
+        <span><i class="fas fa-hashtag me-2 text-warning"></i>Référence</span>
+        <span class="pr-ref">{{ reference }}</span>
+      </div>
+      {% endif %}
+      <div class="pr-recap-row">
+        <span><i class="fas fa-circle me-2 text-warning"></i>Statut</span>
+        <span class="pr-badge-pending" id="statusBadge"><i class="fas fa-spinner fa-spin me-1"></i>En attente</span>
+      </div>
+    </div>
+
+    <!-- Logo Moneroo -->
+    <div class="pr-powered">
+      <img src="{{ url_for('static', filename='img/moneroo.png') }}" style="width:20px;height:20px;border-radius:5px;object-fit:contain;background:#fff;" alt="Moneroo"/>
+      <span>Paiement sécurisé par <strong>Moneroo</strong></span>
+    </div>
+
+    <!-- Actions -->
+    <div class="pr-actions">
+      <button class="pr-btn-check" id="checkBtn" onclick="checkNow()">
+        <i class="fas fa-sync me-2" id="checkIcon"></i>Vérifier maintenant
+      </button>
+      <a href="{{ url_for('course_detail', course_id=course.id) }}" class="pr-btn-sec">
+        <i class="fas fa-arrow-left me-2"></i>Retour au cours
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.pay-result-wrap {
+  min-height: 80vh; display: flex; align-items: center; justify-content: center;
+  padding: 40px 16px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(37,99,235,.07) 0%, transparent 60%);
+}
+.pay-result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; max-width: 500px; width: 100%;
+  text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,.25);
+}
+.pr-icon-wrap {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 28px;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.pr-pending-icon { background: rgba(37,99,235,.1); }
+.pr-spinner {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid rgba(37,99,235,.2);
+  border-top-color: #2563eb;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.pr-clock { font-size: 2.2rem; color: #2563eb; }
+
+.pr-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 10px; }
+.pr-sub   { color: var(--text-muted); font-size: .88rem; margin-bottom: 24px; line-height: 1.6; }
+
+/* Progress bar */
+.pr-progress-wrap {
+  height: 6px; background: rgba(255,255,255,.07); border-radius: 4px;
+  margin-bottom: 8px; overflow: hidden;
+}
+.pr-progress-bar {
+  height: 100%; background: linear-gradient(90deg, #2563eb, #60a5fa);
+  border-radius: 4px; width: 0; transition: width .5s;
+  animation: progressPulse 2s ease-in-out infinite;
+}
+@keyframes progressPulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: .6; }
+}
+.pr-progress-lbl { font-size: .75rem; color: var(--text-muted); margin-bottom: 20px; }
+
+/* Récapitulatif */
+.pr-recap {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left;
+}
+.pr-recap-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  font-size: .83rem; gap: 12px;
+}
+.pr-recap-row:last-child { border-bottom: none; }
+.pr-recap-row span:first-child { color: var(--text-muted); white-space: nowrap; }
+.pr-ref {
+  font-family: monospace; font-size: .78rem;
+  color: #2563eb; background: rgba(37,99,235,.08);
+  padding: 2px 8px; border-radius: 5px;
+}
+.pr-badge-pending {
+  background: rgba(37,99,235,.15); color: #2563eb;
+  padding: 3px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700;
+}
+.pr-powered {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: .75rem; color: var(--text-muted); margin-bottom: 28px;
+}
+.pr-actions { display: flex; flex-direction: column; gap: 12px; }
+.pr-btn-check {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 24px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff; font-weight: 800; font-size: .95rem; transition: all .2s;
+  box-shadow: 0 4px 16px rgba(37,99,235,.3);
+}
+.pr-btn-check:hover { filter: brightness(1.08); transform: translateY(-2px); }
+.pr-btn-sec {
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 24px; border-radius: 12px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); font-weight: 600; font-size: .88rem;
+  text-decoration: none; transition: all .2s;
+}
+.pr-btn-sec:hover { background: var(--surface2); color: var(--text-primary); }
+</style>
+
+<script>
+const MONEROO_ID  = '{{ moneroo_id }}';
+const COURSE_ID   = '{{ course.id }}';
+const CHECK_URL   = '/payment/check/' + MONEROO_ID + '?course_id=' + COURSE_ID;
+const SUCCESS_URL = '{{ url_for("course_detail", course_id=course.id) }}';
+
+let attempts = 0;
+const MAX_ATTEMPTS = 24;   // 2 min à 5 s d'intervalle
+let autoTimer = null;
+let progress = 0;
+
+function setProgress(pct, label) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('statusLbl').textContent = label;
+}
+
+async function checkNow() {
+  if (attempts >= MAX_ATTEMPTS) return;
+  attempts++;
+  progress = Math.min(95, (attempts / MAX_ATTEMPTS) * 100);
+  setProgress(progress, `Tentative ${attempts}/${MAX_ATTEMPTS}…`);
+
+  const icon = document.getElementById('checkIcon');
+  icon.classList.add('fa-spin');
+  document.getElementById('checkBtn').disabled = true;
+
+  try {
+    const res  = await fetch(CHECK_URL);
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      clearInterval(autoTimer);
+      setProgress(100, 'Paiement confirmé !');
+      document.getElementById('statusBadge').innerHTML =
+        '<i class="fas fa-check-circle me-1"></i>Confirmé';
+      document.getElementById('statusBadge').className = 'pr-badge-success';
+      document.getElementById('statusBadge').style.background = 'rgba(63,185,80,.15)';
+      document.getElementById('statusBadge').style.color = '#3fb950';
+      setTimeout(() => { window.location.href = data.redirect || SUCCESS_URL; }, 1200);
+      return;
+    }
+
+    if (data.status === 'failed') {
+      clearInterval(autoTimer);
+      setProgress(100, 'Paiement échoué.');
+      document.getElementById('statusBadge').innerHTML =
+        '<i class="fas fa-times-circle me-1"></i>Échoué';
+      document.getElementById('statusBadge').style.background = 'rgba(248,81,73,.15)';
+      document.getElementById('statusBadge').style.color = '#f85149';
+      setTimeout(() => {
+        window.location.href = '{{ url_for("payment_checkout", course_id=course.id) }}';
+      }, 2000);
+      return;
+    }
+
+    // Toujours pending
+    setProgress(progress, `En attente de confirmation Moneroo… (${attempts}/${MAX_ATTEMPTS})`);
+
+    if (attempts >= MAX_ATTEMPTS) {
+      clearInterval(autoTimer);
+      setProgress(100, 'Délai dépassé. Vérifiez votre relevé et contactez le support.');
+      document.getElementById('checkBtn').textContent = 'Délai dépassé';
+      document.getElementById('checkBtn').disabled = true;
+    }
+
+  } catch(e) {
+    setProgress(progress, 'Erreur réseau — nouvelle tentative…');
+  } finally {
+    icon.classList.remove('fa-spin');
+    if (attempts < MAX_ATTEMPTS) document.getElementById('checkBtn').disabled = false;
+  }
+}
+
+// Vérification automatique toutes les 5 secondes
+autoTimer = setInterval(checkNow, 5000);
+// Première vérification immédiate après 2 s
+setTimeout(checkNow, 2000);
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Surcharge pour badge succès dynamique */
+.pr-badge-success {
+  background: rgba(63,185,80,.15); color: #3fb950;
+  padding: 3px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700;
+}
+</style>
+{% endblock %}

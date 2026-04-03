@@ -1,0 +1,540 @@
+{% extends 'base.html' %}
+{% block title %}Gérer l'eBook — {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:960px">
+
+  <!-- ── Header ── -->
+  <div class="eb-header mb-4">
+    <div>
+      <a href="{{ url_for('admin_dashboard' if current_user.role=='admin' else 'teacher_dashboard') }}"
+         class="back-link"><i class="fas fa-arrow-left me-2"></i>Retour</a>
+      <h2 class="eb-title mt-2"><i class="fas fa-book-open text-gold me-2"></i>Gérer l'eBook</h2>
+      <p class="text-muted mb-0">
+        Cours : <strong class="text-light" id="ebCourseTitle">{{ course.title }}</strong>
+        <span class="ms-2 status-badge
+          {% if course.approval_status == 'approved' %}status-active
+          {% elif course.approval_status == 'rejected' %}status-inactive
+          {% else %}status-pending{% endif %}">
+          {% if course.approval_status == 'approved' %}✓ Approuvé
+          {% elif course.approval_status == 'rejected' %}✗ Refusé
+          {% else %}⏳ En attente{% endif %}
+        </span>
+      </p>
+    </div>
+    <div class="eb-header-status">
+      <div class="eb-status-item {% if course.ebook_cover %}eb-ok{% else %}eb-missing{% endif %}">
+        <i class="fas {% if course.ebook_cover %}fa-check-circle{% else %}fa-times-circle{% endif %} me-1"></i>
+        Couverture
+      </div>
+      <div class="eb-status-item {% if course.ebook_file %}eb-ok{% else %}eb-missing{% endif %}">
+        <i class="fas {% if course.ebook_file %}fa-check-circle{% else %}fa-times-circle{% endif %} me-1"></i>
+        PDF
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Status Alert ── -->
+  {% if course.approval_status == 'rejected' and course.rejection_reason %}
+  <div class="eb-alert eb-alert-danger mb-4">
+    <i class="fas fa-times-circle me-2"></i>
+    <div><strong>Refusé :</strong> {{ course.rejection_reason }}</div>
+  </div>
+  {% elif course.approval_status == 'approved' %}
+  <div class="eb-alert eb-alert-success mb-4">
+    <i class="fas fa-check-circle me-2"></i>
+    <strong>Cours approuvé et publié</strong> — Votre eBook est visible par les étudiants.
+  </div>
+  {% elif course.approval_status == 'pending' %}
+  <div class="eb-alert eb-alert-warning mb-4">
+    <i class="fas fa-clock me-2"></i>
+    <strong>En attente d'approbation</strong> — L'admin doit valider avant publication.
+  </div>
+  {% endif %}
+
+  <!-- ════════════════════════════════════
+       COURSE INFO EDITOR
+  ════════════════════════════════════ -->
+  <div class="card-secel mb-4">
+    <div class="card-secel-header d-flex align-items-center justify-content-between">
+      <h6><i class="fas fa-edit me-2 text-gold"></i>Informations du cours</h6>
+      <button class="ci-toggle-btn" onclick="toggleCi()">
+        <i class="fas fa-chevron-down" id="ciChevron2"></i>
+      </button>
+    </div>
+    <div id="ciBody2" class="card-secel-body">
+      <form id="ciForm" enctype="multipart/form-data">
+        <div class="ci-layout">
+
+          <!-- Thumbnail -->
+          <div class="ci-thumb-col">
+            <label class="form-label-secel mb-2">Photo vignette</label>
+            <div class="ci-thumb-zone" id="ciThumbZone"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleThumbDrop(event)">
+              {% if course.thumbnail %}
+              <img id="ciThumbPreview" src="{% if course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://') %}{{ course.thumbnail }}{% else %}{{ url_for('static', filename='uploads/' + course.thumbnail) }}{% endif %}" alt=""/>
+              {% elif course.ebook_cover %}
+              <img id="ciThumbPreview" src="{{ url_for('static', filename=course.ebook_cover) }}" alt=""/>
+              {% else %}
+              <div class="ci-thumb-placeholder">
+                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                <span class="text-muted small">Photo du cours</span>
+              </div>
+              <img id="ciThumbPreview" src="" alt="" style="display:none"/>
+              {% endif %}
+              <div class="ci-thumb-hover"><i class="fas fa-camera fa-2x mb-1"></i><span>Changer</span></div>
+              <input type="file" id="ciThumbInput" name="thumbnail" accept=".jpg,.jpeg,.png,.webp"
+                     class="ci-thumb-file-input" onchange="previewThumb(this)"/>
+            </div>
+            <label for="ciThumbInput" class="ci-thumb-label mt-1">
+              <i class="fas fa-folder-open me-1"></i>Parcourir
+            </label>
+          </div>
+
+          <!-- Fields -->
+          <div class="ci-fields-col">
+            <div class="ci-row mb-3">
+              <div class="form-group-secel flex-1 mb-0">
+                <label class="form-label-secel">Titre *</label>
+                <input type="text" name="title" class="input-secel" value="{{ course.title }}" required/>
+              </div>
+            </div>
+            <div class="form-group-secel mb-3">
+              <label class="form-label-secel">Description</label>
+              <textarea name="description" class="input-secel" rows="3">{{ course.description or '' }}</textarea>
+            </div>
+            <div class="ci-row mb-3">
+              <div class="form-group-secel flex-1 mb-0">
+                <label class="form-label-secel">Catégorie</label>
+                <select name="category" class="input-secel" style="height:44px">
+                  {% for cat in ['Informatique & IA','Management & Leadership','Finance & Business','Langues','Développement personnel','Marketing Digital','Droit & Comptabilité','Santé & Bien-être'] %}
+                  <option {% if course.category == cat %}selected{% endif %}>{{ cat }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group-secel mb-0" style="width:140px">
+                <label class="form-label-secel">Niveau</label>
+                <select name="level" class="input-secel" style="height:44px">
+                  {% for lvl in ['Débutant','Intermédiaire','Avancé','Expert'] %}
+                  <option {% if course.level == lvl %}selected{% endif %}>{{ lvl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="ci-row align-items-end">
+              <div class="form-group-secel mb-0" style="width:180px">
+                <label class="form-label-secel">Prix (XAF)</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-money-bill-wave input-icon" style="font-size:.8rem"></i>
+                  <input type="number" name="price" class="input-secel" min="0" step="500"
+                         value="{{ course.price|int }}" placeholder="0 = Gratuit" style="padding-left:2.2rem"/>
+                </div>
+              </div>
+              <div class="flex-1">
+                <button type="button" class="btn-save-course" id="btnSaveCi" onclick="saveCi()">
+                  <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                </button>
+                <div id="ciStatus" class="ci-save-status"></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /ci-layout -->
+      </form>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       EBOOK FILES
+  ════════════════════════════════════ -->
+  <div class="row g-4">
+
+    <!-- LEFT col: upload form -->
+    <div class="col-lg-6">
+
+      <!-- Cover image card -->
+      <div class="card-secel mb-4">
+        <div class="card-secel-header">
+          <h6><i class="fas fa-image me-2 text-gold"></i>Image de couverture</h6>
+        </div>
+        <div class="card-secel-body">
+          <form method="POST" action="{{ url_for('upload_ebook', course_id=course.id) }}"
+                enctype="multipart/form-data" id="coverForm">
+            <input type="hidden" name="_file_type" value="cover"/>
+            <div class="eb-dropzone" id="coverZone"
+                 ondragover="event.preventDefault(); this.classList.add('dz-over')"
+                 ondragleave="this.classList.remove('dz-over')"
+                 ondrop="handleCoverDrop(event)">
+              {% if course.ebook_cover %}
+              <img class="eb-cover-preview" id="coverPreview"
+                   src="{{ url_for('static', filename=course.ebook_cover) }}" alt="Couverture"/>
+              <div class="eb-dz-hover">
+                <i class="fas fa-camera fa-2x mb-1"></i><span>Remplacer</span>
+              </div>
+              {% else %}
+              <div class="eb-dz-empty" id="coverEmpty">
+                <i class="fas fa-image fa-3x text-muted mb-2"></i>
+                <p class="text-muted small mb-0">Glissez l'image ici</p>
+              </div>
+              <img class="eb-cover-preview" id="coverPreview" src="" alt="" style="display:none"/>
+              <div class="eb-dz-hover"><i class="fas fa-camera fa-2x mb-1"></i><span>Ajouter</span></div>
+              {% endif %}
+              <input type="file" id="coverFileInput" name="cover_image"
+                     accept=".jpg,.jpeg,.png,.webp" class="eb-file-input" onchange="previewCover(this)"/>
+            </div>
+            <p class="text-muted" style="font-size:.7rem;text-align:center;margin:6px 0 12px">JPG, PNG · Recommandé : 400×560px (format livre)</p>
+            <div class="d-flex gap-2">
+              <label for="coverFileInput" class="btn-secel-gold flex-1 text-center cursor-pointer" style="padding:9px 0;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer">
+                <i class="fas fa-folder-open me-1"></i>Choisir une image
+              </label>
+              <button type="submit" class="btn-upload-file">
+                <i class="fas fa-upload me-1"></i>Uploader
+              </button>
+            </div>
+            <div id="coverFileName" class="mt-2 text-muted small"></div>
+          </form>
+        </div>
+      </div>
+
+      <!-- PDF card -->
+      <div class="card-secel">
+        <div class="card-secel-header d-flex align-items-center justify-content-between">
+          <h6><i class="fas fa-file-pdf me-2 text-danger"></i>Fichier PDF</h6>
+          {% if course.ebook_file %}
+          <form action="{{ url_for('delete_ebook_file', course_id=course.id) }}" method="POST"
+                onsubmit="return confirm('Supprimer le PDF ?')">
+            <button type="submit" class="eb-del-btn" title="Supprimer le PDF">
+              <i class="fas fa-trash me-1"></i>Supprimer
+            </button>
+          </form>
+          {% endif %}
+        </div>
+        <div class="card-secel-body">
+          {% if course.ebook_file %}
+          <div class="eb-pdf-existing mb-3">
+            <i class="fas fa-file-pdf fa-2x text-danger me-3"></i>
+            <div>
+              <div class="fw-semibold small">PDF chargé</div>
+              <div class="text-muted" style="font-size:.72rem;word-break:break-all">{{ course.ebook_file.split('/')[-1] }}</div>
+            </div>
+          </div>
+          <p class="text-muted small mb-2">Uploader un nouveau PDF remplacera l'ancien :</p>
+          {% endif %}
+          <form method="POST" action="{{ url_for('upload_ebook', course_id=course.id) }}"
+                enctype="multipart/form-data">
+            <input type="hidden" name="_file_type" value="pdf"/>
+            <div class="eb-pdf-dropzone" id="pdfZone"
+                 ondragover="event.preventDefault();this.classList.add('dz-over')"
+                 ondragleave="this.classList.remove('dz-over')"
+                 ondrop="handlePdfDrop(event)">
+              <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
+              <p class="text-muted small mb-0">Glissez le PDF ici</p>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+              <label for="pdfFileInput" class="btn-secel-gold flex-1 text-center cursor-pointer" style="padding:9px 0;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer">
+                <i class="fas fa-folder-open me-1"></i>Choisir le PDF
+              </label>
+              <button type="submit" class="btn-upload-file">
+                <i class="fas fa-upload me-1"></i>Uploader
+              </button>
+            </div>
+            <input type="file" id="pdfFileInput" name="ebook_pdf" accept=".pdf"
+                   class="d-none" onchange="showPdfName(this)"/>
+            <div id="pdfFileName" class="mt-2 text-muted small"></div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT col: live preview -->
+    <div class="col-lg-6">
+      <div class="eb-preview-card">
+        <div class="eb-preview-header"><i class="fas fa-eye me-2 text-gold"></i>Aperçu de la fiche cours</div>
+
+        <!-- Book cover preview -->
+        <div class="eb-book-wrap">
+          {% if course.ebook_cover %}
+          <img class="eb-book-cover" id="ebBookCover"
+               src="{{ url_for('static', filename=course.ebook_cover) }}" alt="Couverture"/>
+          {% else %}
+          <div class="eb-book-placeholder" id="ebBookPlaceholder">
+            <i class="fas fa-book-open fa-3x text-muted"></i>
+          </div>
+          <img class="eb-book-cover" id="ebBookCover" src="" alt="" style="display:none"/>
+          {% endif %}
+        </div>
+
+        <div class="eb-preview-info">
+          <div class="eb-preview-badge"><i class="fas fa-book-open me-1"></i>eBook</div>
+          <h5 class="eb-preview-title" id="ebPreviewTitle">{{ course.title }}</h5>
+          <div class="eb-preview-meta">
+            <span><i class="fas fa-user-tie me-1 text-gold"></i>{{ course.teacher.full_name or course.teacher.username }}</span>
+            <span><i class="fas fa-tag me-1 text-gold"></i>{{ course.category or '—' }}</span>
+          </div>
+          <div class="eb-preview-price mt-3">
+            {% if course.is_free %}
+            <span class="price-free"><i class="fas fa-gift me-1"></i>Gratuit</span>
+            {% else %}
+            <span class="price-paid">{{ course.price|int }} XAF</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="eb-checklist">
+          <div class="eb-check-item {% if course.ebook_cover %}ok{% endif %}">
+            <i class="fas {% if course.ebook_cover %}fa-check-circle{% else %}fa-circle{% endif %} me-2"></i>
+            Couverture ajoutée
+          </div>
+          <div class="eb-check-item {% if course.ebook_file %}ok{% endif %}">
+            <i class="fas {% if course.ebook_file %}fa-check-circle{% else %}fa-circle{% endif %} me-2"></i>
+            PDF chargé
+          </div>
+          <div class="eb-check-item {% if course.approval_status == 'approved' %}ok{% endif %}">
+            <i class="fas {% if course.approval_status == 'approved' %}fa-check-circle{% else %}fa-circle{% endif %} me-2"></i>
+            Approuvé par l'admin
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.back-link { color:var(--text-muted); text-decoration:none; font-size:.85rem; }
+.back-link:hover { color:var(--gold); }
+.eb-header { display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; }
+.eb-title { font-size:1.4rem; font-weight:800; margin:0; }
+.eb-header-status { display:flex; gap:10px; align-self:flex-start; margin-top:8px; }
+.eb-status-item { font-size:.78rem; font-weight:600; display:flex; align-items:center; padding:6px 12px; border-radius:8px; }
+.eb-ok      { background:rgba(63,185,80,.1); color:#3fb950; border:1px solid rgba(63,185,80,.3); }
+.eb-missing { background:rgba(248,81,73,.1); color:#f85149; border:1px solid rgba(248,81,73,.3); }
+
+.eb-alert { display:flex; align-items:flex-start; gap:10px; padding:12px 16px; border-radius:10px; }
+.eb-alert-success { background:rgba(63,185,80,.1); border:1px solid rgba(63,185,80,.3); color:#3fb950; }
+.eb-alert-warning { background:rgba(37,99,235,.1); border:1px solid rgba(37,99,235,.3); color:var(--gold); }
+.eb-alert-danger  { background:rgba(248,81,73,.1); border:1px solid rgba(248,81,73,.3); color:#f85149; }
+
+/* Course info editor */
+.ci-toggle-btn { background:transparent; border:1px solid var(--border); color:var(--text-muted); border-radius:8px; padding:5px 10px; cursor:pointer; transition:all .15s; }
+.ci-toggle-btn:hover { border-color:var(--gold); color:var(--gold); }
+#ciChevron2 { transition:transform .3s; }
+#ciChevron2.open { transform:rotate(180deg); }
+.ci-layout { display:flex; gap:20px; flex-wrap:wrap; }
+.ci-thumb-col { display:flex; flex-direction:column; align-items:center; gap:8px; width:150px; flex-shrink:0; }
+.ci-fields-col { flex:1; min-width:240px; }
+.ci-row { display:flex; gap:12px; flex-wrap:wrap; }
+.ci-thumb-zone {
+  width:150px; height:112px; border-radius:12px; overflow:hidden; position:relative;
+  border:2px dashed var(--border); cursor:pointer; background:var(--surface2); transition:border-color .2s;
+}
+.ci-thumb-zone img { width:100%; height:100%; object-fit:cover; display:block; }
+.ci-thumb-zone.drag-over { border-color:var(--gold); }
+.ci-thumb-placeholder { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.ci-thumb-hover {
+  position:absolute; inset:0; background:rgba(0,0,0,.55); display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  color:var(--gold); font-size:.72rem; gap:4px;
+}
+.ci-thumb-zone:hover .ci-thumb-hover { display:flex; }
+.ci-thumb-file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; }
+.ci-thumb-label {
+  display:inline-flex; align-items:center; background:rgba(37,99,235,.1); border:1px solid rgba(37,99,235,.25);
+  color:var(--gold); border-radius:8px; padding:5px 12px; font-size:.75rem; font-weight:600; cursor:pointer; transition:all .15s;
+}
+.ci-thumb-label:hover { background:var(--gold); color:#fff; }
+.btn-save-course {
+  display:inline-flex; align-items:center; background:var(--gold); color:#fff; border:none;
+  border-radius:10px; padding:10px 18px; font-weight:700; font-size:.875rem; cursor:pointer;
+  transition:all .2s; width:100%;
+}
+.btn-save-course:hover { background:#1d4ed8; }
+.btn-save-course:disabled { background:#555; color:#aaa; cursor:not-allowed; }
+.ci-save-status { font-size:.78rem; margin-top:5px; min-height:16px; }
+.ci-save-ok  { color:#3fb950; }
+.ci-save-err { color:#f85149; }
+
+/* Dropzones */
+.eb-dropzone {
+  border:2px dashed var(--border); border-radius:12px; aspect-ratio:2/3; max-height:280px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+  overflow:hidden; cursor:pointer; transition:border-color .2s; background:var(--surface2);
+  text-align:center;
+}
+.eb-dropzone.dz-over { border-color:var(--gold); }
+.eb-cover-preview { width:100%; height:100%; object-fit:cover; }
+.eb-dz-empty { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.eb-dz-hover {
+  position:absolute; inset:0; background:rgba(0,0,0,.55);
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  color:var(--gold); font-size:.78rem; gap:4px;
+}
+.eb-dropzone:hover .eb-dz-hover { display:flex; }
+.eb-file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+
+.eb-pdf-dropzone {
+  border:2px dashed var(--border); border-radius:12px; padding:28px 16px;
+  text-align:center; transition:border-color .2s; background:var(--surface2);
+}
+.eb-pdf-dropzone.dz-over { border-color:var(--gold); }
+
+.btn-upload-file {
+  background:rgba(37,99,235,.12); border:1px solid rgba(37,99,235,.3); color:var(--gold);
+  border-radius:9px; padding:9px 16px; font-weight:600; font-size:.82rem; cursor:pointer;
+  white-space:nowrap; transition:all .2s;
+}
+.btn-upload-file:hover { background:var(--gold); color:#000; }
+.eb-del-btn {
+  background:rgba(248,81,73,.1); border:1px solid rgba(248,81,73,.3); color:#f85149;
+  border-radius:8px; padding:4px 10px; font-size:.75rem; cursor:pointer; transition:all .15s;
+}
+.eb-del-btn:hover { background:#f85149; color:#fff; }
+.eb-pdf-existing { display:flex; align-items:center; padding:12px; background:rgba(248,81,73,.05); border:1px solid rgba(248,81,73,.2); border-radius:8px; }
+
+/* Preview card */
+.eb-preview-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;
+  position:sticky; top:80px;
+}
+.eb-preview-header { padding:12px 16px; border-bottom:1px solid var(--border); font-size:.875rem; font-weight:600; background:var(--surface2); }
+.eb-book-wrap { padding:20px; display:flex; justify-content:center; background:#0d1117; }
+.eb-book-cover {
+  max-width:160px; border-radius:8px;
+  box-shadow:4px 4px 20px rgba(0,0,0,.6), -2px 0 0 rgba(0,0,0,.3);
+}
+.eb-book-placeholder {
+  width:120px; height:170px; border:2px dashed rgba(255,255,255,.15);
+  border-radius:8px; display:flex; align-items:center; justify-content:center;
+}
+.eb-preview-info { padding:16px; }
+.eb-preview-badge {
+  display:inline-flex; align-items:center; background:rgba(99,179,237,.15);
+  border:1px solid rgba(99,179,237,.3); color:#63b3ed; border-radius:20px;
+  padding:2px 10px; font-size:.7rem; font-weight:700; margin-bottom:8px;
+}
+.eb-preview-title { font-size:1rem; font-weight:800; margin-bottom:8px; }
+.eb-preview-meta { display:flex; flex-direction:column; gap:4px; font-size:.78rem; color:var(--text-muted); }
+.eb-preview-price { font-size:1rem; font-weight:700; }
+.price-free { color:#3fb950; }
+.price-paid { color:var(--gold); }
+
+.eb-checklist { padding:0 16px 16px; display:flex; flex-direction:column; gap:6px; }
+.eb-check-item { font-size:.78rem; color:var(--text-muted); display:flex; align-items:center; }
+.eb-check-item.ok { color:#3fb950; }
+.eb-check-item.ok i { color:#3fb950; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const UPDATE_URL  = '{{ url_for("update_course", course_id=course.id) }}';
+const COURSE_ID   = {{ course.id }};
+
+// ── Course Info Editor ──────────────────
+function toggleCi() {
+  const body    = document.getElementById('ciBody2');
+  const chevron = document.getElementById('ciChevron2');
+  const open    = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  chevron.classList.toggle('open', !open);
+}
+function previewThumb(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('ciThumbPreview');
+    const ph  = document.querySelector('.ci-thumb-placeholder');
+    img.src = e.target.result; img.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function handleThumbDrop(e) {
+  e.preventDefault();
+  document.getElementById('ciThumbZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const inp = document.getElementById('ciThumbInput');
+  const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+  previewThumb(inp);
+}
+async function saveCi() {
+  const btn = document.getElementById('btnSaveCi');
+  const st  = document.getElementById('ciStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enregistrement…';
+  const fd = new FormData(document.getElementById('ciForm'));
+  try {
+    const r = await fetch(UPDATE_URL, { method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:fd });
+    const d = await r.json();
+    if (d.success) {
+      st.className = 'ci-save-status ci-save-ok';
+      st.innerHTML = '<i class="fas fa-check-circle me-1"></i>' + d.message;
+      if (d.title) {
+        document.getElementById('ebCourseTitle').textContent = d.title;
+        document.getElementById('ebPreviewTitle').textContent = d.title;
+      }
+    } else {
+      st.className = 'ci-save-status ci-save-err';
+      st.textContent = 'Erreur lors de la mise à jour';
+    }
+  } catch { st.className='ci-save-status ci-save-err'; st.textContent='Erreur réseau'; }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-save me-2"></i>Enregistrer les modifications';
+}
+
+// ── Cover image preview ──────────────────
+function previewCover(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const cover = document.getElementById('coverPreview');
+    const empty = document.getElementById('coverEmpty');
+    const book  = document.getElementById('ebBookCover');
+    const ph    = document.getElementById('ebBookPlaceholder');
+    cover.src = e.target.result; cover.style.display = 'block';
+    book.src  = e.target.result; book.style.display  = 'block';
+    if (empty) empty.style.display = 'none';
+    if (ph)    ph.style.display    = 'none';
+    const name = input.files[0].name;
+    const size = (input.files[0].size / 1024 / 1024).toFixed(1);
+    document.getElementById('coverFileName').innerHTML =
+      `<i class="fas fa-check-circle text-success me-1"></i>${name} (${size} MB)`;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function handleCoverDrop(e) {
+  e.preventDefault();
+  document.getElementById('coverZone').classList.remove('dz-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.type.startsWith('image/')) return;
+  const inp = document.getElementById('coverFileInput');
+  const dt  = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+  previewCover(inp);
+}
+
+// ── PDF preview ──────────────────────────
+function showPdfName(input) {
+  if (!input.files || !input.files[0]) return;
+  const name = input.files[0].name;
+  const size = (input.files[0].size / 1024 / 1024).toFixed(1);
+  document.getElementById('pdfFileName').innerHTML =
+    `<i class="fas fa-check-circle text-success me-1"></i><strong>${name}</strong> (${size} MB)`;
+  // Highlight PDF zone
+  document.getElementById('pdfZone').style.borderColor = 'var(--gold)';
+}
+function handlePdfDrop(e) {
+  e.preventDefault();
+  document.getElementById('pdfZone').classList.remove('dz-over');
+  const file = e.dataTransfer.files[0];
+  if (!file || file.type !== 'application/pdf') return;
+  const inp = document.getElementById('pdfFileInput');
+  const dt  = new DataTransfer(); dt.items.add(file); inp.files = dt.files;
+  showPdfName(inp);
+}
+</script>
+{% endblock %}

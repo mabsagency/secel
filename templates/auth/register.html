@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}Inscription — SECEL{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-split">
+
+    <!-- Left: Image Panel (Black students collaborative learning) -->
+    <div class="auth-image-panel d-none d-lg-flex">
+      <div class="auth-img-bg" style="background-image: url('https://images.unsplash.com/photo-1573166953836-06864dc70a21?w=900&h=1100&fit=crop');"></div>
+      <div class="auth-img-overlay"></div>
+      <div class="auth-img-content">
+        <a href="{{ url_for('index') }}" class="auth-logo-link">
+          <svg viewBox="0 0 180 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="height:44px">
+            <rect width="180" height="46" rx="8" fill="rgba(0,0,0,0.6)"/>
+            <g transform="translate(8,6)">
+              <polygon points="16,4 29,11 16,18 3,11" fill="#60a5fa"/>
+              <path d="M8 13 Q8 21 16 23 Q24 21 24 13" fill="#60a5fa" opacity="0.85"/>
+              <line x1="3" y1="11" x2="3" y2="21" stroke="#60a5fa" stroke-width="1.5"/>
+              <circle cx="3" cy="23" r="2" fill="#60a5fa"/>
+            </g>
+            <text x="44" y="29" font-family="Poppins" font-size="18" font-weight="800" fill="#60a5fa" letter-spacing="1.5">SECEL</text>
+            <text x="45" y="40" font-family="Inter" font-size="6.5" fill="#aabbcc">EXCELLENCE · FORMATION · AVENIR</text>
+          </svg>
+        </a>
+        <div class="auth-img-text">
+          <h2>"Investir dans la connaissance rapporte les meilleurs intérêts."</h2>
+          <p class="auth-quote-author">— Benjamin Franklin</p>
+        </div>
+        <div class="auth-perks mt-4">
+          <div class="perk-item"><i class="fas fa-check-circle text-warning me-2"></i> Accès à 50+ cours premium</div>
+          <div class="perk-item"><i class="fas fa-check-circle text-warning me-2"></i> Certificats reconnus</div>
+          <div class="perk-item"><i class="fas fa-check-circle text-warning me-2"></i> Support multilingue</div>
+          <div class="perk-item"><i class="fas fa-check-circle text-warning me-2"></i> Apprentissage à votre rythme</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Registration Form -->
+    <div class="auth-form-panel auth-form-panel-scroll">
+      <div class="auth-form-inner">
+        <div class="auth-back mb-3">
+          <a href="{{ url_for('index') }}" class="text-muted text-decoration-none small">
+            <i class="fas fa-arrow-left me-1"></i> Retour à l'accueil
+          </a>
+        </div>
+
+        <h2 class="auth-form-title">Créer votre compte 🚀</h2>
+        <p class="auth-form-sub">Rejoignez la communauté SECEL dès aujourd'hui</p>
+
+        <!-- Role Selector -->
+        <div class="role-selector mb-4">
+          <label class="role-option active" id="roleStudent" onclick="selectRole('student')">
+            <input type="radio" name="role_display" value="student" checked class="d-none"/>
+            <i class="fas fa-graduation-cap"></i>
+            <span>Étudiant</span>
+            <div class="role-check"><i class="fas fa-check"></i></div>
+          </label>
+          <label class="role-option" id="roleTeacher" onclick="selectRole('teacher')">
+            <input type="radio" name="role_display" value="teacher" class="d-none"/>
+            <i class="fas fa-chalkboard-teacher"></i>
+            <span>Enseignant</span>
+            <div class="role-check"><i class="fas fa-check"></i></div>
+          </label>
+        </div>
+
+        <form method="POST" action="{{ url_for('register') }}" class="auth-form">
+          <input type="hidden" name="role" id="selectedRole" value="student"/>
+
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="form-group-secel">
+                <label class="form-label-secel">Nom complet *</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-user input-icon"></i>
+                  <input type="text" name="full_name" class="input-secel" placeholder="Jean-Paul Mukendi" required/>
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="form-group-secel">
+                <label class="form-label-secel">Nom d'utilisateur *</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-at input-icon"></i>
+                  <input type="text" name="username" class="input-secel" placeholder="jpmukendi" required pattern="[a-zA-Z0-9_]{3,20}"/>
+                </div>
+                <small class="form-hint">3-20 caractères, lettres, chiffres et _</small>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="form-group-secel">
+                <label class="form-label-secel">Adresse Email *</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-envelope input-icon"></i>
+                  <input type="email" name="email" class="input-secel" placeholder="votre@email.com" required/>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group-secel">
+                <label class="form-label-secel">Mot de passe *</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-lock input-icon"></i>
+                  <input type="password" name="password" id="pwd1" class="input-secel" placeholder="••••••••" required minlength="6"/>
+                  <button type="button" class="input-icon-right toggle-password" onclick="togglePwd('pwd1', this)"><i class="fas fa-eye"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group-secel">
+                <label class="form-label-secel">Confirmer *</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-lock input-icon"></i>
+                  <input type="password" name="confirm_password" id="pwd2" class="input-secel" placeholder="••••••••" required minlength="6"/>
+                  <button type="button" class="input-icon-right toggle-password" onclick="togglePwd('pwd2', this)"><i class="fas fa-eye"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Password Strength -->
+          <div class="pwd-strength-bar mt-2">
+            <div class="pwd-strength-fill" id="pwdStrengthFill"></div>
+          </div>
+          <small class="pwd-strength-label" id="pwdStrengthLabel">Force du mot de passe</small>
+
+          <!-- Terms -->
+          <label class="checkbox-secel mt-4">
+            <input type="checkbox" required/>
+            <span class="checkmark"></span>
+            J'accepte les <a href="#" class="text-warning">Conditions d'utilisation</a> et la <a href="#" class="text-warning">Politique de confidentialité</a>
+          </label>
+
+          <button type="submit" class="btn-auth-submit w-100 mt-4">
+            <i class="fas fa-user-plus me-2"></i> Créer mon compte SECEL
+          </button>
+        </form>
+
+        <p class="auth-switch-text mt-4">
+          Déjà un compte ?
+          <a href="{{ url_for('login') }}" class="text-warning fw-semibold">Se connecter</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectRole(role) {
+  document.getElementById('selectedRole').value = role;
+  document.querySelectorAll('.role-option').forEach(el => el.classList.remove('active'));
+  document.getElementById(role === 'student' ? 'roleStudent' : 'roleTeacher').classList.add('active');
+}
+
+function togglePwd(id, btn) {
+  const inp = document.getElementById(id);
+  const ico = btn.querySelector('i');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  ico.className = inp.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+
+// Password strength
+document.getElementById('pwd1').addEventListener('input', function() {
+  const pwd = this.value;
+  let strength = 0;
+  if (pwd.length >= 8) strength++;
+  if (/[A-Z]/.test(pwd)) strength++;
+  if (/[0-9]/.test(pwd)) strength++;
+  if (/[^a-zA-Z0-9]/.test(pwd)) strength++;
+  const fill = document.getElementById('pwdStrengthFill');
+  const labels = ['', 'Faible', 'Moyen', 'Bon', 'Excellent'];
+  const colors = ['', '#e74c3c', '#f39c12', '#3498db', '#27ae60'];
+  fill.style.width = (strength * 25) + '%';
+  fill.style.background = colors[strength] || '#e74c3c';
+  document.getElementById('pwdStrengthLabel').textContent = labels[strength] || '';
+  document.getElementById('pwdStrengthLabel').style.color = colors[strength] || '';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% block title %}Modifier — {{ course.title[:40] }} — SECEL{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width:820px">
+
+  <!-- Breadcrumb -->
+  <div class="mb-4 d-flex align-items-center gap-2">
+    <a href="{{ url_for('admin_dashboard' if current_user.role=='admin' else 'teacher_dashboard') }}"
+       class="text-muted text-decoration-none small"><i class="fas fa-arrow-left me-1"></i>Tableau de bord</a>
+    <span class="text-muted small">/</span>
+    <span class="text-muted small">Modifier le cours</span>
+  </div>
+
+  <div class="ec-header mb-4">
+    <div class="ec-icon {{ 'ec-icon-ebook' if course.course_type == 'ebook' else 'ec-icon-video' }}">
+      <i class="fas {{ 'fa-book-open' if course.course_type == 'ebook' else 'fa-film' }}"></i>
+    </div>
+    <div>
+      <h2 class="ec-title">Modifier le cours</h2>
+      <p class="ec-sub">{{ course.title[:60] }}{% if course.title|length > 60 %}…{% endif %}</p>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="ec-alert ec-alert-{{ 'success' if cat == 'success' else 'danger' }} mb-3">
+      <i class="fas {{ 'fa-check-circle' if cat == 'success' else 'fa-exclamation-circle' }} me-2"></i>{{ msg }}
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('update_course', course_id=course.id) }}"
+        enctype="multipart/form-data" id="editForm">
+
+    <div class="ec-card mb-4">
+      <div class="ec-card-header"><i class="fas fa-info-circle me-2 text-gold"></i>Informations générales</div>
+      <div class="ec-card-body">
+
+        <!-- Titre -->
+        <div class="ec-field mb-3">
+          <label class="ec-label">Titre du cours <span class="text-danger">*</span></label>
+          <div class="input-icon-wrap">
+            <i class="fas fa-book input-icon"></i>
+            <input type="text" name="title" class="input-secel" value="{{ course.title }}" required
+                   placeholder="Titre du cours"/>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="ec-field mb-3">
+          <label class="ec-label">Description</label>
+          <textarea name="description" class="input-secel" rows="5"
+                    placeholder="Décrivez votre cours, les objectifs et le public cible...">{{ course.description or '' }}</textarea>
+        </div>
+
+        <!-- Catégorie + Niveau -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="ec-label">Catégorie</label>
+            <select name="category" class="input-secel">
+              <option value="">Choisir...</option>
+              {% set cats = ['Informatique & IA','Management & Leadership','Finance & Business',
+                             'Langues','Développement personnel','Marketing Digital',
+                             'Droit & Comptabilité','Santé & Bien-être'] %}
+              {% for cat in cats %}
+              <option value="{{ cat }}" {{ 'selected' if course.category == cat else '' }}>{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="ec-label">Niveau</label>
+            <select name="level" class="input-secel">
+              {% for lvl in ['Débutant','Intermédiaire','Avancé','Expert'] %}
+              <option value="{{ lvl }}" {{ 'selected' if course.level == lvl else '' }}>{{ lvl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Prix -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="ec-label">Prix <span class="text-muted small">(0 = gratuit)</span></label>
+            <div class="input-icon-wrap">
+              <i class="fas fa-tag input-icon"></i>
+              <input type="number" name="price" class="input-secel"
+                     value="{{ course.price|int }}" min="0" step="100"/>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="ec-label">Devise</label>
+            <div class="input-secel d-flex align-items-center" style="background:#f8fafc;cursor:default;">
+              <i class="fas fa-coins me-2" style="color:#f59e0b;"></i>
+              <strong style="color:#2563eb;">XAF</strong>
+            </div>
+          </div>
+        </div>
+
+      <!-- ── Date d'expiration ── -->
+      <div class="ec-expiry-box mt-3">
+        <div class="ec-expiry-header">
+          <i class="fas fa-hourglass-end me-2"></i>Date d'expiration automatique
+          <span class="ec-expiry-opt">optionnel</span>
+        </div>
+        <div class="input-icon-wrap mt-2">
+          <i class="fas fa-calendar-alt input-icon" style="color:#f59e0b;"></i>
+          <input type="date" name="expires_at" class="input-secel"
+                 style="background:#fff;"
+                 value="{{ course.expires_at.strftime('%Y-%m-%d') if course.expires_at else '' }}"/>
+        </div>
+        {% if course.expires_at %}
+          {% set days_left = (course.expires_at - now).days %}
+          {% if days_left < 0 %}
+          <div class="ec-expiry-status ec-expiry-expired">
+            <i class="fas fa-skull-crossbones me-1"></i>Expiré — sera supprimé au prochain cycle nocturne.
+          </div>
+          {% elif days_left <= 7 %}
+          <div class="ec-expiry-status ec-expiry-soon">
+            <i class="fas fa-clock me-1"></i>Expire dans <strong>{{ days_left }}</strong> jour(s) — le {{ course.expires_at.strftime('%d/%m/%Y') }}.
+          </div>
+          {% else %}
+          <div class="ec-expiry-status ec-expiry-ok">
+            <i class="fas fa-check-circle me-1"></i>Actif jusqu'au <strong>{{ course.expires_at.strftime('%d/%m/%Y') }}</strong>
+            ({{ days_left }} jours restants).
+          </div>
+          {% endif %}
+        {% else %}
+        <div class="ec-expiry-status ec-expiry-none">
+          <i class="fas fa-infinity me-1"></i>Aucune expiration — formation permanente. Laissez vide pour conserver.
+        </div>
+        {% endif %}
+      </div>
+
+      </div>
+    </div>
+
+    <!-- Thumbnail (cours vidéo uniquement) -->
+    {% if course.course_type != 'ebook' %}
+    <div class="ec-card mb-4">
+      <div class="ec-card-header"><i class="fas fa-image me-2 text-gold"></i>Image de couverture</div>
+      <div class="ec-card-body">
+        <div class="row g-4 align-items-center">
+          <div class="col-md-4">
+            <div class="ec-thumb-preview" id="thumbPreview">
+              {% if course.thumbnail %}
+                {% set tsrc = course.thumbnail if (course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://')) else url_for('static', filename='uploads/' + course.thumbnail) %}
+                <img src="{{ tsrc }}" id="thumbImg" alt="Aperçu"/>
+              {% else %}
+                <div class="ec-thumb-placeholder" id="thumbPlaceholder">
+                  <i class="fas fa-image"></i><span>Aucune image</span>
+                </div>
+                <img src="" id="thumbImg" alt="Aperçu" style="display:none;"/>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-8">
+            <label class="ec-label mb-2">Changer l'image <span class="text-muted small">(JPG, PNG, WEBP)</span></label>
+            <input type="file" name="thumbnail" id="thumbInput" class="ec-file-input" accept="image/*"
+                   onchange="previewThumb(this)"/>
+            <label for="thumbInput" class="ec-file-label">
+              <i class="fas fa-upload me-2"></i>Choisir une image
+            </label>
+            <p class="text-muted small mt-2 mb-0">Laisser vide pour conserver l'image actuelle.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="ec-actions">
+      <a href="{{ url_for('admin_dashboard' if current_user.role=='admin' else 'teacher_dashboard') }}"
+         class="ec-btn-cancel"><i class="fas fa-times me-2"></i>Annuler</a>
+
+      {% if course.course_type == 'ebook' %}
+      <a href="{{ url_for('upload_ebook', course_id=course.id) }}" class="ec-btn-secondary">
+        <i class="fas fa-book-open me-2"></i>Gérer l'eBook
+      </a>
+      {% else %}
+      <a href="{{ url_for('upload_content', course_id=course.id) }}" class="ec-btn-secondary">
+        <i class="fas fa-film me-2"></i>Gérer les vidéos
+      </a>
+      {% endif %}
+
+      <button type="submit" class="ec-btn-save">
+        <i class="fas fa-save me-2"></i>Enregistrer les modifications
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+function previewThumb(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('thumbImg');
+      const ph  = document.getElementById('thumbPlaceholder');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      if (ph) ph.style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+
+<style>
+/* ── Header ─────────────────────────────────────────────────── */
+.ec-header { display: flex; align-items: center; gap: 18px; }
+.ec-icon {
+  width: 54px; height: 54px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+}
+.ec-icon-video { background: rgba(99,102,241,.18); color: #818cf8; }
+.ec-icon-ebook { background: rgba(59,130,246,.18); color: #60a5fa; }
+.ec-title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+.ec-sub    { color: var(--text-muted); font-size: .875rem; margin: 0; }
+
+/* ── Alert ──────────────────────────────────────────────────── */
+.ec-alert { padding: .9rem 1.2rem; border-radius: 10px; font-size: .875rem; display: flex; align-items: center; }
+.ec-alert-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+.ec-alert-danger  { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: #f87171; }
+
+/* ── Card ───────────────────────────────────────────────────── */
+.ec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.ec-card-header {
+  padding: 14px 22px; background: var(--surface2); border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: .9rem;
+}
+.ec-card-body { padding: 22px; }
+.ec-field {}
+.ec-label { font-size: .82rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+
+/* ── Thumbnail preview ──────────────────────────────────────── */
+.ec-thumb-preview {
+  width: 100%; height: 140px; border-radius: 12px; overflow: hidden;
+  background: var(--surface2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+}
+.ec-thumb-preview img { width: 100%; height: 100%; object-fit: cover; }
+.ec-thumb-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-muted); font-size: .8rem; }
+.ec-thumb-placeholder i { font-size: 2rem; }
+
+/* ── File input ─────────────────────────────────────────────── */
+.ec-file-input { display: none; }
+.ec-file-label {
+  display: inline-flex; align-items: center; padding: 9px 18px;
+  background: rgba(108,71,255,.15); border: 1px solid rgba(108,71,255,.3);
+  border-radius: 8px; color: #a78bfa; font-size: .85rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+}
+.ec-file-label:hover { background: rgba(108,71,255,.25); }
+
+/* ── Actions bar ────────────────────────────────────────────── */
+.ec-actions {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end;
+  padding-top: 8px;
+}
+.ec-btn-cancel {
+  padding: 11px 22px; border-radius: 10px; font-size: .875rem; font-weight: 600;
+  background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+  text-decoration: none; display: inline-flex; align-items: center;
+  transition: all .2s;
+}
+.ec-btn-cancel:hover { border-color: #cbd5e1; color: #1e293b; }
+.ec-btn-secondary {
+  padding: 11px 22px; border-radius: 10px; font-size: .875rem; font-weight: 600;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  color: #475569; text-decoration: none;
+  display: inline-flex; align-items: center; transition: all .2s;
+}
+.ec-btn-secondary:hover { background: #f1f5f9; color: #1e293b; border-color: #cbd5e1; }
+.ec-btn-save {
+  padding: 11px 28px; border-radius: 10px; font-size: .9rem; font-weight: 800;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border: none; color: #ffffff; cursor: pointer;
+  display: inline-flex; align-items: center; transition: all .2s;
+  box-shadow: 0 4px 16px rgba(37,99,235,.3);
+}
+.ec-btn-save:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+/* ── Boîte expiration ───────────────────────────────────────── */
+.ec-expiry-box {
+  background: #fff8f0; border: 1.5px solid #fed7aa;
+  border-radius: 12px; padding: 1rem 1.2rem;
+}
+.ec-expiry-header {
+  font-size: .82rem; font-weight: 700; color: #92400e;
+  display: flex; align-items: center; gap: 4px;
+}
+.ec-expiry-opt {
+  font-size: .7rem; font-weight: 500; color: #b45309;
+  background: #fef3c7; border-radius: 20px;
+  padding: 1px 8px; margin-left: 6px;
+}
+.ec-expiry-status {
+  margin-top: 8px; font-size: .8rem; font-weight: 500;
+  padding: 6px 10px; border-radius: 8px;
+}
+.ec-expiry-expired { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.ec-expiry-soon    { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+.ec-expiry-ok      { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+.ec-expiry-none    { background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; }
+
+/* ── File label light theme ─────────────────────────────────── */
+.ec-file-label {
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  color: #2563eb;
+}
+.ec-file-label:hover { background: #dbeafe; }
+</style>
+{% endblock %}

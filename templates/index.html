@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+{% block title %}SECEL — Votre Plateforme de Formation d'Excellence{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════ HERO SECTION ═══════════════════ -->
+<section class="hero-section" id="hero">
+  <div class="hero-bg-overlay"></div>
+  <!-- Background: Black woman studying with laptop -->
+  <div class="hero-bg" style="background-image: url('https://images.unsplash.com/photo-1573497161161-c3e73707e25c?w=1920&q=80&fit=crop');"></div>
+
+  <div class="container hero-content">
+    <div class="row align-items-center min-vh-hero">
+      <div class="col-lg-6 hero-text-col">
+        <div class="hero-badge animate-fade-up">
+          <i class="fas fa-star me-2 text-warning"></i>
+          <span data-i18n="hero_badge">Plateforme #1 de Formation Professionnelle</span>
+        </div>
+        <h1 class="hero-title animate-fade-up delay-1" data-i18n="hero_title">
+          Construisez votre <span class="text-gold">Excellence</span><br/>
+          avec SECEL
+        </h1>
+        <p class="hero-subtitle animate-fade-up delay-2" data-i18n="hero_subtitle">
+          Accédez à des formations premium par vidéo, PDF et cours interactifs.
+          Apprenez avec les meilleurs enseignants, à votre rythme.
+        </p>
+        <div class="hero-actions animate-fade-up delay-3">
+          <a href="{{ url_for('register') }}" class="btn-hero-primary">
+            <i class="fas fa-rocket me-2"></i>
+            <span data-i18n="start_free">Commencer Gratuitement</span>
+          </a>
+          <a href="{{ url_for('courses') }}" class="btn-hero-secondary">
+            <i class="fas fa-play-circle me-2"></i>
+            <span data-i18n="explore_courses">Explorer les Cours</span>
+          </a>
+        </div>
+        <div class="hero-trust animate-fade-up delay-4">
+          <!-- Small avatars of diverse Black students -->
+          <div class="trust-avatars">
+            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=50&h=50&fit=crop&crop=face" alt="Étudiant" class="trust-avatar"/>
+            <img src="https://images.unsplash.com/photo-1573166953836-06864dc70a21?w=50&h=50&fit=crop&crop=face" alt="Étudiant" class="trust-avatar"/>
+            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=50&h=50&fit=crop&crop=face" alt="Étudiant" class="trust-avatar"/>
+            <img src="https://images.unsplash.com/photo-1617073201318-06ce39e6a224?w=50&h=50&fit=crop&crop=face" alt="Étudiant" class="trust-avatar"/>
+          </div>
+          <span class="trust-text" data-i18n="trust_text">+500 étudiants nous font confiance</span>
+        </div>
+      </div>
+      <div class="col-lg-6 hero-visual-col d-none d-lg-flex">
+        <div class="hero-card-stack">
+          <!-- Floating stat cards -->
+          <div class="hero-float-card card-1">
+            <div class="float-card-icon"><i class="fas fa-graduation-cap"></i></div>
+            <div class="float-card-data">
+              <span class="float-num" data-count="{{ stats.courses }}">0</span>
+              <span class="float-label">Cours Actifs</span>
+            </div>
+          </div>
+          <div class="hero-float-card card-2">
+            <div class="float-card-icon"><i class="fas fa-users"></i></div>
+            <div class="float-card-data">
+              <span class="float-num" data-count="{{ stats.students }}">0</span>
+              <span class="float-label">Étudiants</span>
+            </div>
+          </div>
+          <div class="hero-float-card card-3">
+            <div class="float-card-icon"><i class="fas fa-certificate"></i></div>
+            <div class="float-card-data">
+              <span class="float-num">100%</span>
+              <span class="float-label">Taux de satisfaction</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll Indicator -->
+  <div class="scroll-indicator">
+    <div class="scroll-dot"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════ STATS KPI ═══════════════════ -->
+<section class="stats-kpi-section">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-6 col-md-3">
+        <div class="skpi-card">
+          <div class="skpi-icon-wrap skpi-blue"><i class="fas fa-user-graduate"></i></div>
+          <div class="skpi-num" data-count="{{ stats.students }}">0</div>
+          <div class="skpi-label" data-i18n="stat_students">Étudiants inscrits</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="skpi-card">
+          <div class="skpi-icon-wrap skpi-teal"><i class="fas fa-chalkboard-teacher"></i></div>
+          <div class="skpi-num" data-count="{{ stats.teachers }}">0</div>
+          <div class="skpi-label" data-i18n="stat_teachers">Enseignants experts</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="skpi-card">
+          <div class="skpi-icon-wrap skpi-green"><i class="fas fa-book-open"></i></div>
+          <div class="skpi-num" data-count="{{ stats.courses }}">0</div>
+          <div class="skpi-label" data-i18n="stat_courses">Cours disponibles</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="skpi-card">
+          <div class="skpi-icon-wrap skpi-purple"><i class="fas fa-play-circle"></i></div>
+          <div class="skpi-num" data-count="{{ stats.videos }}">0</div>
+          <div class="skpi-label" data-i18n="stat_videos">Vidéos de formation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ WHO WE ARE (Avant-propos) ═══════════════════ -->
+<section class="about-section py-6">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="about-image-grid">
+          <!-- Black professionals in learning environments -->
+          <div class="about-img-main">
+            <img src="https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=600&h=400&fit=crop" alt="Étudiants SECEL" class="img-fluid rounded-3 shadow-lg"/>
+          </div>
+          <div class="about-img-secondary">
+            <img src="https://images.unsplash.com/photo-1573165706511-3ffde6ef1fe3?w=300&h=200&fit=crop" alt="Formation SECEL" class="img-fluid rounded-3 shadow"/>
+          </div>
+          <div class="about-img-badge">
+            <div class="badge-years">5+</div>
+            <div class="badge-text">Années d'excellence</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="section-label" data-i18n="about_label">À Propos de SECEL</div>
+        <h2 class="section-title" data-i18n="about_title">
+          L'Excellence au Service<br/>de Votre <span class="text-gold">Formation</span>
+        </h2>
+        <p class="section-text" data-i18n="about_text1">
+          <strong>SECEL</strong> (Société d'Enseignement et de Compétences En Ligne) est une plateforme éducative de pointe, conçue pour offrir aux professionnels et aux étudiants une expérience d'apprentissage premium, flexible et adaptée aux besoins du marché actuel.
+        </p>
+        <p class="section-text" data-i18n="about_text2">
+          Notre écosystème digital connecte des enseignants experts à des apprenants ambitieux à travers des contenus vidéo haute définition, des ressources PDF enrichies et un suivi personnalisé.
+        </p>
+        <div class="about-features mt-4">
+          <div class="feature-row">
+            <div class="feature-check"><i class="fas fa-check"></i></div>
+            <span data-i18n="feat1">Contenu validé par des experts avant publication</span>
+          </div>
+          <div class="feature-row">
+            <div class="feature-check"><i class="fas fa-check"></i></div>
+            <span data-i18n="feat2">Interface disponible en Français et Anglais</span>
+          </div>
+          <div class="feature-row">
+            <div class="feature-check"><i class="fas fa-check"></i></div>
+            <span data-i18n="feat3">Certificats professionnels à l'issue de chaque formation</span>
+          </div>
+          <div class="feature-row">
+            <div class="feature-check"><i class="fas fa-check"></i></div>
+            <span data-i18n="feat4">Support client 24/7 avec assistant IA multilingue</span>
+          </div>
+        </div>
+        <a href="{{ url_for('register') }}" class="btn-secel-gold mt-4 d-inline-flex align-items-center gap-2">
+          <span data-i18n="join_us">Rejoindre SECEL</span>
+          <i class="fas fa-arrow-right"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ HOW IT WORKS ═══════════════════ -->
+<section class="how-section py-6 bg-dark-alt">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-label" data-i18n="how_label">Comment ça marche</div>
+      <h2 class="section-title" data-i18n="how_title">En 3 étapes simples,<br/>lancez votre <span class="text-gold">apprentissage</span></h2>
+    </div>
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-number">01</div>
+          <div class="how-icon-wrap how-icon-blue"><i class="fas fa-user-plus"></i></div>
+          <h4 data-i18n="step1_title">Inscrivez-vous</h4>
+          <p data-i18n="step1_text">Créez votre compte en tant qu'étudiant ou enseignant. C'est rapide, gratuit et sécurisé.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card how-card-featured">
+          <div class="how-number">02</div>
+          <div class="how-icon-wrap how-icon-green"><i class="fas fa-search"></i></div>
+          <h4 data-i18n="step2_title">Choisissez un cours</h4>
+          <p data-i18n="step2_text">Parcourez notre catalogue riche en formations dans divers domaines professionnels.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="how-card">
+          <div class="how-number">03</div>
+          <div class="how-icon-wrap how-icon-purple"><i class="fas fa-play-circle"></i></div>
+          <h4 data-i18n="step3_title">Apprenez et progressez</h4>
+          <p data-i18n="step3_text">Suivez les cours à votre rythme, obtenez votre certificat et boostez votre carrière.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ FEATURED COURSES ═══════════════════ -->
+<section class="courses-section py-6">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-end mb-5">
+      <div>
+        <div class="section-label" data-i18n="courses_label">Nos Formations</div>
+        <h2 class="section-title mb-0" data-i18n="courses_title">Cours <span class="text-gold">Populaires</span></h2>
+      </div>
+      <a href="{{ url_for('courses') }}" class="btn-secel-outline d-none d-md-inline-flex align-items-center gap-2">
+        <span data-i18n="see_all">Voir tout</span> <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+
+    {% if featured_courses %}
+    <div class="row g-4">
+      {% for course in featured_courses %}
+      <div class="col-md-6 col-lg-4">
+        <div class="course-card">
+          <div class="course-thumbnail">
+            {% if course.thumbnail %}
+              {% if course.thumbnail.startswith('http://') or course.thumbnail.startswith('https://') %}
+                <img src="{{ course.thumbnail }}" alt="{{ course.title }}"/>
+              {% else %}
+                <img src="{{ url_for('static', filename='uploads/' + course.thumbnail) }}" alt="{{ course.title }}"/>
+              {% endif %}
+            {% else %}
+              <div class="course-thumb-default" style="background-image: url('https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=400&h=220&fit=crop')">
+                <div class="thumb-overlay">
+                  <i class="fas fa-play-circle"></i>
+                </div>
+              </div>
+            {% endif %}
+            <div class="course-badge-level">{{ course.level }}</div>
+          </div>
+          <div class="course-body">
+            <div class="course-category">{{ course.category or 'Formation' }}</div>
+            <h5 class="course-title-card">{{ course.title }}</h5>
+            <p class="course-desc">{{ (course.description or '')[:80] }}{% if course.description and course.description|length > 80 %}...{% endif %}</p>
+            <div class="course-meta">
+              <span class="course-teacher">
+                <i class="fas fa-user-tie me-1" style="color:#2563eb;"></i>
+                {{ course.teacher.full_name or course.teacher.username }}
+              </span>
+              <span class="course-videos">
+                <i class="fas fa-play me-1" style="color:#2563eb;"></i>
+                {{ course.videos.count() }} vidéos
+              </span>
+            </div>
+            <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn-course-cta">
+              <span data-i18n="access_course">Accéder au cours</span>
+              <i class="fas fa-arrow-right ms-2"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-courses text-center py-5">
+      <div class="empty-icon"><i class="fas fa-book-open"></i></div>
+      <h4 class="text-muted" data-i18n="no_courses">Les cours arrivent bientôt !</h4>
+      <p class="text-muted" data-i18n="be_first">Soyez parmi les premiers à vous inscrire.</p>
+      <a href="{{ url_for('register') }}" class="btn-secel-gold">Commencer</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ═══════════════════ TESTIMONIALS ═══════════════════ -->
+<section class="testimonials-section py-6 bg-dark-alt">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-label">Témoignages</div>
+      <h2 class="section-title">Ce que disent nos <span class="text-gold">étudiants</span></h2>
+    </div>
+    <div class="row g-4">
+      <!-- Testimonial 1 - Black woman professional -->
+      <div class="col-md-4">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+          </div>
+          <p class="testimonial-text">"SECEL a transformé ma carrière. Les cours sont d'une qualité exceptionnelle et les enseignants très accessibles. Je recommande vivement !"</p>
+          <div class="testimonial-author">
+            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=60&h=60&fit=crop&crop=face" alt="Marie K." class="testimonial-avatar"/>
+            <div>
+              <div class="testimonial-name">Marie Kabila</div>
+              <div class="testimonial-role">Ingénieure Informatique</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Testimonial 2 - Black man professional -->
+      <div class="col-md-4">
+        <div class="testimonial-card testimonial-featured">
+          <div class="testimonial-stars">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+          </div>
+          <p class="testimonial-text">"La meilleure plateforme éducative que j'ai utilisée. Le support multilingue est un énorme avantage pour nous en Afrique. Bravo SECEL !"</p>
+          <div class="testimonial-author">
+            <img src="https://images.unsplash.com/photo-1617073201318-06ce39e6a224?w=60&h=60&fit=crop&crop=face" alt="Jean M." class="testimonial-avatar"/>
+            <div>
+              <div class="testimonial-name">Jean-Paul Mukendi</div>
+              <div class="testimonial-role">Manager, Kinshasa</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Testimonial 3 -->
+      <div class="col-md-4">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+          </div>
+          <p class="testimonial-text">"Grâce à SECEL, j'ai obtenu ma certification en gestion de projet en seulement 3 mois. La flexibilité des cours est incomparable."</p>
+          <div class="testimonial-author">
+            <img src="https://images.unsplash.com/photo-1573497161161-c3e73707e25c?w=60&h=60&fit=crop&crop=face" alt="Amina D." class="testimonial-avatar"/>
+            <div>
+              <div class="testimonial-name">Amina Diallo</div>
+              <div class="testimonial-role">Chef de Projet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ INSTRUCTORS SECTION ═══════════════════ -->
+<section class="instructors-section py-6">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-label">Notre Équipe</div>
+      <h2 class="section-title">Nos <span class="text-gold">Enseignants Experts</span></h2>
+    </div>
+    <div class="row g-4 justify-content-center">
+      <div class="col-6 col-md-3">
+        <div class="instructor-card">
+          <img src="https://images.unsplash.com/photo-1649532354766-2d845cf3f997?w=200&h=200&fit=crop&crop=face" alt="Prof. Thomas" class="instructor-img"/>
+          <h6 class="instructor-name">Prof. Thomas Ngoy</h6>
+          <span class="instructor-specialty">Informatique & IA</span>
+          <div class="instructor-rating"><i class="fas fa-star text-warning"></i> 4.9</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="instructor-card">
+          <img src="https://images.unsplash.com/photo-1573166953836-06864dc70a21?w=200&h=200&fit=crop&crop=face" alt="Dr. Aisha" class="instructor-img"/>
+          <h6 class="instructor-name">Dr. Aisha Kamara</h6>
+          <span class="instructor-specialty">Finance & Économie</span>
+          <div class="instructor-rating"><i class="fas fa-star text-warning"></i> 4.8</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="instructor-card">
+          <img src="https://images.unsplash.com/photo-1677594334011-d745870b2ba8?w=200&h=200&fit=crop&crop=face" alt="M. Kofi" class="instructor-img"/>
+          <h6 class="instructor-name">M. Kofi Mensah</h6>
+          <span class="instructor-specialty">Leadership & Management</span>
+          <div class="instructor-rating"><i class="fas fa-star text-warning"></i> 4.7</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="instructor-card">
+          <img src="https://images.unsplash.com/photo-1573165706511-3ffde6ef1fe3?w=200&h=200&fit=crop&crop=face" alt="Mme Fatou" class="instructor-img"/>
+          <h6 class="instructor-name">Mme Fatou Sall</h6>
+          <span class="instructor-specialty">Langues & Communication</span>
+          <div class="instructor-rating"><i class="fas fa-star text-warning"></i> 4.9</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ CTA SECTION ═══════════════════ -->
+<section class="cta-section py-6">
+  <div class="container">
+    <div class="cta-card">
+      <div class="cta-bg" style="background-image: url('https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=1200&q=80&fit=crop');"></div>
+      <div class="cta-overlay"></div>
+      <div class="cta-content text-center position-relative">
+        <h2 class="cta-title" data-i18n="cta_title">Prêt à transformer votre avenir ?</h2>
+        <p class="cta-subtitle" data-i18n="cta_subtitle">Rejoignez des milliers d'apprenants qui ont choisi SECEL pour leur développement professionnel.</p>
+        <div class="cta-actions d-flex gap-3 justify-content-center flex-wrap">
+          <a href="{{ url_for('register') }}" class="btn-secel-gold btn-lg-cta">
+            <i class="fas fa-rocket me-2"></i>
+            <span data-i18n="cta_btn1">Commencer maintenant</span>
+          </a>
+          <a href="{{ url_for('courses') }}" class="btn-secel-white btn-lg-cta">
+            <i class="fas fa-eye me-2"></i>
+            <span data-i18n="cta_btn2">Voir les cours</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Counter animation for stats
+function animateCounters() {
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count) || 0;
+    let current = 0;
+    const increment = target / 60;
+    const timer = setInterval(() => {
+      current = Math.min(current + increment, target);
+      el.textContent = Math.floor(current);
+      if (current >= target) clearInterval(timer);
+    }, 25);
+  });
+}
+
+// Intersection Observer for counters
+const counters = document.querySelectorAll('[data-count]');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) { animateCounters(); observer.disconnect(); }
+  });
+}, { threshold: 0.3 });
+if (counters.length) observer.observe(counters[0]);
+</script>
+{% endblock %}

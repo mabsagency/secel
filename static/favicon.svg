@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark background -->
+  <rect width="32" height="32" rx="6" fill="#2563eb"/>
+  <!-- Graduation cap: top diamond/rhombus -->
+  <polygon points="16,5 26,11 16,17 6,11" fill="#ffffff"/>
+  <!-- Cap body (mortarboard body) -->
+  <path d="M8,12.5 Q8,21 16,23 Q24,21 24,12.5" fill="#ffffff" opacity="0.9"/>
+  <!-- Tassel string -->
+  <line x1="6" y1="11" x2="6" y2="21" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  <!-- Tassel ball -->
+  <circle cx="6" cy="23" r="2.2" fill="#ffffff"/>
+</svg>

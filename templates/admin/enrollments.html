@@ -1,0 +1,168 @@
+{% extends 'admin/admin_base.html' %}
+{% block title %}Gestion des Inscriptions — SECEL Admin{% endblock %}
+{% block page_title %}Gestion des Inscriptions{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+  <h2 class="admin-page-title">Inscriptions des étudiants</h2>
+  <p class="admin-page-sub text-muted">Consultez et gérez qui est inscrit à chaque cours.</p>
+</div>
+
+<!-- ── Filter by Course ── -->
+<div class="card-secel mb-4 p-4">
+  <form method="GET" action="{{ url_for('admin_enrollments') }}" class="d-flex flex-wrap gap-3 align-items-end">
+    <div class="flex-grow-1" style="min-width:220px;">
+      <label class="form-label-secel mb-1" style="font-size:.8rem;">Filtrer par cours</label>
+      <select name="course_id" class="input-secel input-sm">
+        <option value="">Tous les cours</option>
+        {% for c in courses %}
+        <option value="{{ c.id }}" {% if selected_course and selected_course.id == c.id %}selected{% endif %}>
+          {{ c.title }} ({{ c.enrollments.count() }} étudiant{{ 's' if c.enrollments.count()>1 else '' }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn-secel-gold btn-sm"><i class="fas fa-filter me-1"></i>Filtrer</button>
+      <a href="{{ url_for('admin_enrollments') }}" class="btn-secel-outline btn-sm">Réinitialiser</a>
+    </div>
+  </form>
+</div>
+
+<!-- ── Stats Summary ── -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card-secel p-3 text-center">
+      <div class="kpi-value text-warning">{{ enrollments|length }}</div>
+      <div class="kpi-label text-muted">Inscriptions affichées</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card-secel p-3 text-center">
+      <div class="kpi-value text-success">{{ enrollments|selectattr('completed','equalto',True)|list|length }}</div>
+      <div class="kpi-label text-muted">Cours complétés</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card-secel p-3 text-center">
+      <div class="kpi-value text-info">
+        {% if enrollments %}{{ (enrollments|sum(attribute='progress') / enrollments|length)|round(1) }}%{% else %}0%{% endif %}
+      </div>
+      <div class="kpi-label text-muted">Progression moyenne</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Enrollments Table ── -->
+{% if selected_course %}
+<div class="mb-3 d-flex align-items-center gap-2">
+  <i class="fas fa-book-open text-warning"></i>
+  <h5 class="mb-0">{{ selected_course.title }}</h5>
+  <span class="text-muted small">— {{ enrollments|length }} étudiant{{ 's' if enrollments|length>1 else '' }}</span>
+</div>
+{% endif %}
+
+<div class="card-secel">
+  <div class="card-secel-header d-flex justify-content-between align-items-center">
+    <h6><i class="fas fa-users me-2 text-warning"></i>Liste des inscriptions</h6>
+    <span class="text-muted small">{{ enrollments|length }} résultat{{ 's' if enrollments|length>1 else '' }}</span>
+  </div>
+  <div class="card-secel-body p-0">
+    {% if enrollments %}
+    <div class="table-responsive">
+      <table class="table-secel">
+        <thead>
+          <tr>
+            <th>Étudiant</th>
+            <th>Cours</th>
+            <th>Type</th>
+            <th>Inscrit le</th>
+            <th>Progression</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for enrollment in enrollments %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="user-avatar-sm" style="background:rgba(37,99,235,.15);border:1px solid rgba(37,99,235,.3);color:#2563eb;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">
+                  {{ (enrollment.student.full_name or enrollment.student.username)[0].upper() }}
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ enrollment.student.full_name or enrollment.student.username }}</div>
+                  <div class="text-muted" style="font-size:.75rem;">{{ enrollment.student.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('course_detail', course_id=enrollment.course.id) }}" class="text-warning text-decoration-none fw-semibold">
+                {{ enrollment.course.title[:40] }}{% if enrollment.course.title|length > 40 %}…{% endif %}
+              </a>
+            </td>
+            <td>
+              <span class="badge {% if enrollment.course.course_type=='ebook' %}bg-info{% else %}bg-secondary{% endif %}">
+                <i class="fas {% if enrollment.course.course_type=='ebook' %}fa-book-open{% else %}fa-film{% endif %} me-1"></i>
+                {{ 'eBook' if enrollment.course.course_type=='ebook' else 'Vidéo' }}
+              </span>
+            </td>
+            <td class="text-muted small">{{ enrollment.enrolled_at.strftime('%d/%m/%Y') if enrollment.enrolled_at else '—' }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress-bar-wrap" style="width:80px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;">
+                  <div style="width:{{ enrollment.progress|round(0)|int }}%;height:100%;background:{% if enrollment.progress >= 100 %}#22c55e{% elif enrollment.progress > 0 %}#2563eb{% else %}#6b7280{% endif %};border-radius:3px;"></div>
+                </div>
+                <span class="small {% if enrollment.progress >= 100 %}text-success{% elif enrollment.progress > 0 %}text-warning{% else %}text-muted{% endif %}">
+                  {{ enrollment.progress|round(1) }}%
+                </span>
+              </div>
+            </td>
+            <td>
+              {% if enrollment.completed %}
+              <span class="status-badge status-active"><i class="fas fa-check-circle me-1"></i>Complété</span>
+              {% elif enrollment.progress > 0 %}
+              <span class="status-badge" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);">
+                <i class="fas fa-spinner me-1"></i>En cours
+              </span>
+              {% else %}
+              <span class="status-badge status-inactive"><i class="fas fa-clock me-1"></i>Non commencé</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('admin_remove_enrollment', enrollment_id=enrollment.id) }}"
+                    class="d-inline" onsubmit="return confirm('Désinscrire {{ enrollment.student.full_name or enrollment.student.username }} de ce cours ?')">
+                <button type="submit" class="action-btn btn-danger-sm" title="Désinscrire">
+                  <i class="fas fa-user-minus"></i>
+                </button>
+              </form>
+              <a href="{{ url_for('admin_enrollments') }}?course_id={{ enrollment.course.id }}" class="action-btn ms-1" title="Voir ce cours">
+                <i class="fas fa-filter"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-users-slash fa-3x text-muted mb-3" style="opacity:.3;"></i>
+      <h5 class="text-muted">Aucune inscription trouvée</h5>
+      {% if selected_course %}
+      <p class="text-muted small">Aucun étudiant inscrit à ce cours pour l'instant.</p>
+      {% else %}
+      <p class="text-muted small">Aucune inscription enregistrée sur la plateforme.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.kpi-value { font-size: 2rem; font-weight: 800; font-family: 'Poppins', sans-serif; }
+.kpi-label { font-size: .8rem; }
+</style>
+{% endblock %}

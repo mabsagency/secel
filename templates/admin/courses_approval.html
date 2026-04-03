@@ -1,0 +1,394 @@
+{% extends 'admin/admin_base.html' %}
+{% block title %}Approbation des Cours — SECEL Admin{% endblock %}
+{% block page_title %}Gestion & Approbation des Cours{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+  <h2 class="admin-page-title"><i class="fas fa-graduation-cap me-2 text-gold"></i>Cours à approuver</h2>
+  <p class="admin-page-sub">Approuvez ou refusez les cours soumis par les enseignants.</p>
+</div>
+
+<!-- ── Pending Courses ─────────────────────────────────────── -->
+{% if pending %}
+<div class="card-secel mb-4">
+  <div class="card-secel-header d-flex justify-content-between align-items-center">
+    <h6 class="mb-0"><i class="fas fa-clock me-2" style="color:#2563eb;"></i>En attente de validation
+      <span class="ca-pill ca-pill-danger ms-2">{{ pending|length }}</span>
+    </h6>
+  </div>
+  <div class="card-secel-body p-0">
+    {% for course in pending %}
+    <div class="ca-pending-item {% if not loop.last %}ca-divider{% endif %}">
+      <div class="row g-4 align-items-start">
+
+        <!-- ── Info cours ── -->
+        <div class="col-lg-6">
+          <div class="d-flex align-items-start gap-3">
+            <div class="ca-type-icon {{ 'ca-icon-ebook' if course.course_type == 'ebook' else 'ca-icon-video' }}">
+              <i class="fas {{ 'fa-book-open' if course.course_type == 'ebook' else 'fa-film' }}"></i>
+            </div>
+            <div class="flex-1">
+              <h6 class="ca-course-title">{{ course.title }}</h6>
+              <div class="ca-meta-row">
+                <span><i class="fas fa-user-tie me-1 text-warning"></i>{{ course.teacher.full_name or course.teacher.username }}</span>
+                <span><i class="fas fa-tag me-1 text-warning"></i>{{ course.category or 'Non défini' }}</span>
+                <span><i class="fas fa-layer-group me-1 text-warning"></i>{{ course.level }}</span>
+              </div>
+              <div class="ca-meta-row" style="margin-top:4px;">
+                <span><i class="fas fa-calendar me-1"></i>{{ course.created_at.strftime('%d/%m/%Y à %H:%M') if course.created_at else '—' }}</span>
+                {% if not course.is_free %}
+                <span class="text-gold"><i class="fas fa-coins me-1"></i>{{ course.price|int }} {{ course.currency }}</span>
+                {% else %}
+                <span style="color:#3fb950;"><i class="fas fa-gift me-1"></i>Gratuit</span>
+                {% endif %}
+              </div>
+              {% if course.description %}
+              <p class="ca-desc">{{ course.description[:100] }}{% if course.description|length > 100 %}…{% endif %}</p>
+              {% endif %}
+              <!-- Date d'expiration -->
+              {% if course.expires_at %}
+                {% set days_left = (course.expires_at - now).days %}
+                <div class="mt-2" style="font-size:.78rem;">
+                  {% if days_left < 0 %}
+                    <span style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:2px 9px;border-radius:20px;font-weight:600;">
+                      <i class="fas fa-skull-crossbones me-1"></i>Expiré
+                    </span>
+                  {% elif days_left <= 7 %}
+                    <span style="background:#fffbeb;color:#d97706;border:1px solid #fde68a;padding:2px 9px;border-radius:20px;font-weight:600;">
+                      <i class="fas fa-hourglass-half me-1"></i>Expire dans {{ days_left }}j
+                    </span>
+                  {% else %}
+                    <span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 9px;border-radius:20px;font-weight:600;">
+                      <i class="fas fa-calendar-check me-1"></i>Expire le {{ course.expires_at.strftime('%d/%m/%Y') }}
+                    </span>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              <!-- Statut fichiers -->
+              <div class="d-flex gap-2 mt-2 flex-wrap">
+                {% if course.course_type == 'ebook' %}
+                  <span class="ca-badge-file {{ 'ca-file-ok' if course.ebook_cover else 'ca-file-missing' }}">
+                    <i class="fas {{ 'fa-check' if course.ebook_cover else 'fa-times' }} me-1"></i>Couverture
+                  </span>
+                  <span class="ca-badge-file {{ 'ca-file-ok' if course.ebook_file else 'ca-file-missing' }}">
+                    <i class="fas {{ 'fa-check' if course.ebook_file else 'fa-times' }} me-1"></i>PDF
+                  </span>
+                {% else %}
+                  <span class="ca-badge-file ca-file-info">
+                    <i class="fas fa-film me-1"></i>{{ course.videos.count() }} vidéo(s)
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Actions ── -->
+        <div class="col-lg-6">
+          <div class="ca-actions-panel">
+
+            <!-- Approuver -->
+            <form method="POST" action="{{ url_for('admin_approve_course', course_id=course.id) }}" class="mb-3">
+              {% if course.course_type == 'video' %}
+              <div class="ca-field mb-2">
+                <label class="ca-label"><i class="fab fa-youtube me-1" style="color:#ff4444;"></i>Playlist YouTube (optionnel)</label>
+                <input type="url" name="youtube_playlist_url" class="input-secel"
+                       style="font-size:.82rem;padding:8px 12px;"
+                       value="{{ course.youtube_playlist_url or '' }}"
+                       placeholder="https://www.youtube.com/playlist?list=..."/>
+              </div>
+              {% endif %}
+              <button type="submit" class="ca-btn ca-btn-approve w-100"
+                      onclick="return confirm('Approuver et publier « {{ course.title[:40] }} » ?')">
+                <i class="fas fa-check-circle me-2"></i>Approuver et publier
+              </button>
+            </form>
+
+            <!-- Refuser -->
+            <form method="POST" action="{{ url_for('admin_reject_course', course_id=course.id) }}" class="mb-3">
+              <div class="ca-field mb-2">
+                <label class="ca-label"><i class="fas fa-comment-alt me-1"></i>Raison du refus (optionnel)</label>
+                <input type="text" name="rejection_reason" class="input-secel"
+                       style="font-size:.82rem;padding:8px 12px;"
+                       placeholder="Ex : contenu incomplet, qualité insuffisante…"/>
+              </div>
+              <button type="submit" class="ca-btn ca-btn-reject w-100"
+                      onclick="return confirm('Refuser ce cours ?')">
+                <i class="fas fa-times-circle me-2"></i>Refuser
+              </button>
+            </form>
+
+            <!-- Liens secondaires -->
+            <div class="ca-secondary-links">
+              <a href="{{ url_for('edit_course', course_id=course.id) }}" class="ca-link ca-link-edit">
+                <i class="fas fa-pen me-1"></i>Modifier
+              </a>
+              {% if course.course_type == 'ebook' %}
+              <a href="{{ url_for('upload_ebook', course_id=course.id) }}" class="ca-link">
+                <i class="fas fa-eye me-1"></i>Voir l'eBook
+              </a>
+              {% else %}
+              <a href="{{ url_for('upload_content', course_id=course.id) }}" class="ca-link">
+                <i class="fas fa-eye me-1"></i>Voir le contenu
+              </a>
+              {% endif %}
+              <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}" class="d-inline"
+                    onsubmit="return confirmAdminDelete('{{ course.title[:40] }}')">
+                <button type="submit" class="ca-link ca-link-danger">
+                  <i class="fas fa-trash-alt me-1"></i>Supprimer
+                </button>
+              </form>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<div class="card-secel mb-4 p-5 text-center">
+  <i class="fas fa-check-circle fa-4x text-success mb-3" style="opacity:.5;"></i>
+  <h4 style="color:var(--admin-text);">Aucun cours en attente</h4>
+  <p class="text-muted">Tous les cours soumis ont été traités.</p>
+</div>
+{% endif %}
+
+<!-- ── Approved Courses ────────────────────────────────────── -->
+{% if approved %}
+<div class="card-secel mb-4">
+  <div class="card-secel-header">
+    <h6 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>Cours approuvés récents
+      <span class="ca-pill ca-pill-success ms-2">{{ approved|length }}</span>
+    </h6>
+  </div>
+  <div class="card-secel-body p-0">
+    <div class="table-responsive">
+      <table class="table-secel">
+        <thead>
+          <tr>
+            <th>Cours</th><th>Type</th><th>Enseignant</th><th>Inscrits</th><th>Publié</th><th>Expiration</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for course in approved %}
+          <tr>
+            <td class="fw-semibold" style="max-width:220px;">
+              {{ course.title[:45] }}{% if course.title|length > 45 %}…{% endif %}
+            </td>
+            <td>
+              <span class="ca-type-pill {{ 'ca-type-ebook' if course.course_type=='ebook' else 'ca-type-video' }}">
+                <i class="fas {{ 'fa-book-open' if course.course_type=='ebook' else 'fa-film' }} me-1"></i>
+                {{ 'eBook' if course.course_type=='ebook' else 'Vidéo' }}
+              </span>
+            </td>
+            <td style="color:var(--admin-secondary);">{{ course.teacher.full_name or course.teacher.username }}</td>
+            <td><span class="text-warning fw-bold">{{ course.enrollments.count() }}</span></td>
+            <td style="color:var(--admin-muted);font-size:.82rem;">{{ course.updated_at.strftime('%d/%m/%Y') if course.updated_at else '—' }}</td>
+            <td style="font-size:.82rem;">
+              {% if course.expires_at %}
+                {% set days_left = (course.expires_at - now).days %}
+                {% if days_left < 0 %}
+                  <span style="color:#dc2626;font-weight:700;"><i class="fas fa-skull-crossbones me-1"></i>Expiré</span>
+                {% elif days_left <= 7 %}
+                  <span style="color:#f59e0b;font-weight:600;"><i class="fas fa-hourglass-half me-1"></i>{{ days_left }}j</span>
+                {% else %}
+                  <span style="color:#16a34a;"><i class="fas fa-calendar-check me-1"></i>{{ course.expires_at.strftime('%d/%m/%Y') }}</span>
+                {% endif %}
+              {% else %}
+                <span style="color:var(--admin-secondary);"><i class="fas fa-infinity me-1"></i>—</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-1 align-items-center">
+                <a href="{{ url_for('course_detail', course_id=course.id) }}" class="ca-icon-btn" title="Voir la page">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{{ url_for('edit_course', course_id=course.id) }}" class="ca-icon-btn ca-icon-btn-gold" title="Modifier">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('admin_reject_course', course_id=course.id) }}" class="d-inline"
+                      onsubmit="return confirm('Dépublier ce cours ?')">
+                  <input type="hidden" name="rejection_reason" value="Dépublié par l'admin"/>
+                  <button type="submit" class="ca-icon-btn ca-icon-btn-orange" title="Dépublier">
+                    <i class="fas fa-eye-slash"></i>
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}" class="d-inline"
+                      onsubmit="return confirmAdminDelete('{{ course.title[:40] }}')">
+                  <button type="submit" class="ca-icon-btn ca-icon-btn-danger" title="Supprimer">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Rejected Courses ────────────────────────────────────── -->
+{% if rejected %}
+<div class="card-secel">
+  <div class="card-secel-header">
+    <h6 class="mb-0"><i class="fas fa-times-circle me-2 text-danger"></i>Cours refusés récents
+      <span class="ca-pill ca-pill-danger ms-2">{{ rejected|length }}</span>
+    </h6>
+  </div>
+  <div class="card-secel-body p-0">
+    <div class="table-responsive">
+      <table class="table-secel">
+        <thead><tr><th>Cours</th><th>Enseignant</th><th>Raison du refus</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for course in rejected %}
+          <tr>
+            <td class="fw-semibold">{{ course.title[:40] }}{% if course.title|length > 40 %}…{% endif %}</td>
+            <td style="color:var(--admin-secondary);">{{ course.teacher.full_name or course.teacher.username }}</td>
+            <td style="color:var(--admin-muted);font-size:.82rem;">{{ course.rejection_reason or '—' }}</td>
+            <td style="color:var(--admin-muted);font-size:.82rem;">{{ course.updated_at.strftime('%d/%m/%Y') if course.updated_at else '—' }}</td>
+            <td>
+              <div class="d-flex gap-1 align-items-center">
+                <form method="POST" action="{{ url_for('admin_approve_course', course_id=course.id) }}" class="d-inline">
+                  <button type="submit" class="ca-icon-btn ca-icon-btn-green" title="Re-approuver">
+                    <i class="fas fa-redo"></i>
+                  </button>
+                </form>
+                <a href="{{ url_for('edit_course', course_id=course.id) }}" class="ca-icon-btn ca-icon-btn-gold" title="Modifier">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_course', course_id=course.id) }}" class="d-inline"
+                      onsubmit="return confirmAdminDelete('{{ course.title[:40] }}')">
+                  <button type="submit" class="ca-icon-btn ca-icon-btn-danger" title="Supprimer">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Pending item ───────────────────────────────────── */
+.ca-pending-item { padding: 24px; transition: background .18s; }
+.ca-pending-item:hover { background: rgba(37,99,235,.04); }
+.ca-divider { border-bottom: 1px solid var(--admin-border); }
+
+/* ── Type icon ──────────────────────────────────────── */
+.ca-type-icon {
+  width: 46px; height: 46px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+.ca-icon-video { background: rgba(99,102,241,.18); color: #818cf8; }
+.ca-icon-ebook { background: rgba(59,130,246,.18); color: #60a5fa; }
+
+/* ── Course info ────────────────────────────────────── */
+.ca-course-title { font-size: .95rem; font-weight: 700; margin-bottom: 6px; color: var(--admin-text); }
+.ca-meta-row { display: flex; flex-wrap: wrap; gap: 10px; font-size: .78rem; color: var(--admin-muted); }
+.ca-desc { font-size: .78rem; color: var(--admin-muted); margin: 8px 0 0; line-height: 1.5; }
+
+/* ── File status badges ─────────────────────────────── */
+.ca-badge-file {
+  font-size: .72rem; font-weight: 700; padding: 3px 10px; border-radius: 50px;
+  display: inline-flex; align-items: center;
+}
+.ca-file-ok      { background: rgba(63,185,80,.15);  color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+.ca-file-missing { background: rgba(248,81,73,.12);  color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+.ca-file-info    { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.3); }
+
+/* ── Actions panel ──────────────────────────────────── */
+.ca-actions-panel {
+  background: var(--admin-surface2); border: 1px solid var(--admin-border);
+  border-radius: 12px; padding: 18px;
+}
+.ca-field {}
+.ca-label { font-size: .75rem; font-weight: 600; color: var(--admin-secondary); margin-bottom: 5px; display: block; }
+
+/* Approve / Reject buttons */
+.ca-btn {
+  width: 100%; padding: 10px 16px; border-radius: 9px; border: none;
+  font-size: .85rem; font-weight: 700; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all .2s;
+}
+.ca-btn-approve {
+  background: linear-gradient(135deg, rgba(63,185,80,.2), rgba(63,185,80,.1));
+  border: 1px solid rgba(63,185,80,.4); color: #3fb950;
+}
+.ca-btn-approve:hover { background: rgba(63,185,80,.3); border-color: #3fb950; }
+.ca-btn-reject {
+  background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.35); color: #f87171;
+}
+.ca-btn-reject:hover { background: rgba(248,81,73,.22); border-color: #f85149; }
+
+/* Secondary links row */
+.ca-secondary-links {
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  border-top: 1px solid var(--admin-border); padding-top: 12px; margin-top: 4px;
+}
+.ca-link {
+  font-size: .78rem; font-weight: 600; padding: 5px 12px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,.1); color: var(--admin-secondary);
+  text-decoration: none; cursor: pointer; background: transparent;
+  transition: all .18s; display: inline-flex; align-items: center;
+}
+.ca-link:hover { border-color: var(--admin-border); color: var(--admin-text); background: rgba(37,99,235,.05); }
+.ca-link-edit  { border-color: rgba(37,99,235,.3); color: #2563eb; }
+.ca-link-edit:hover { border-color: #2563eb; background: rgba(37,99,235,.08); color: #2563eb; }
+.ca-link-danger { border-color: rgba(248,81,73,.25); color: #f87171; }
+.ca-link-danger:hover { border-color: #f85149; background: rgba(248,81,73,.1); color: #f85149; }
+
+/* ── Pill badges ────────────────────────────────────── */
+.ca-pill {
+  font-size: .68rem; font-weight: 800; padding: 2px 8px; border-radius: 50px;
+  display: inline-flex; align-items: center;
+}
+.ca-pill-danger  { background: rgba(248,81,73,.2);  color: #f85149; }
+.ca-pill-success { background: rgba(63,185,80,.2);  color: #3fb950; }
+
+/* ── Type pills (table) ─────────────────────────────── */
+.ca-type-pill { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 50px; display: inline-flex; align-items: center; }
+.ca-type-video { background: rgba(99,102,241,.15); color: #818cf8; }
+.ca-type-ebook { background: rgba(59,130,246,.15); color: #60a5fa; }
+
+/* ── Icon buttons (table actions) ───────────────────── */
+.ca-icon-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--admin-border); background: transparent;
+  color: var(--admin-secondary); font-size: .75rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; text-decoration: none; transition: all .18s; flex-shrink: 0;
+}
+.ca-icon-btn:hover        { border-color: var(--admin-muted);  color: var(--admin-text); background: rgba(37,99,235,.05); }
+.ca-icon-btn-gold:hover   { border-color: var(--admin-gold);   color: var(--admin-gold); background: rgba(37,99,235,.08); }
+.ca-icon-btn-gold         { border-color: rgba(37,99,235,.3); color: var(--admin-gold); }
+.ca-icon-btn-green        { border-color: rgba(63,185,80,.3); color: #3fb950; }
+.ca-icon-btn-green:hover  { border-color: #3fb950; color: #3fb950; background: rgba(63,185,80,.08); }
+.ca-icon-btn-orange       { border-color: rgba(255,102,0,.3); color: #ff6600; }
+.ca-icon-btn-orange:hover { border-color: #ff6600; background: rgba(255,102,0,.08); }
+.ca-icon-btn-danger       { border-color: rgba(248,81,73,.3); color: #f85149; }
+.ca-icon-btn-danger:hover { border-color: #f85149; background: rgba(248,81,73,.1); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmAdminDelete(title) {
+  return confirm('⚠️ SUPPRESSION DÉFINITIVE\n\nCours : "' + title + '"\n\nToutes les vidéos, inscriptions, progressions et données seront supprimées.\nCette action est irréversible !\n\nConfirmer ?');
+}
+</script>
+{% endblock %}

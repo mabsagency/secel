@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}Inscription Enseignant — SECEL{% endblock %}
+
+{% block content %}
+<section class="register-section">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+
+      <!-- LEFT: Image panel -->
+      <div class="col-lg-5 d-none d-lg-block">
+        <div class="register-panel register-panel-teacher">
+          <div class="register-panel-overlay"></div>
+          <img src="https://images.unsplash.com/photo-1653565685060-e15e492a7fda?w=800&q=80"
+               alt="Enseignant SECEL" class="register-panel-img"/>
+          <div class="register-panel-text">
+            <h2>Partagez votre<br><span class="text-gold">expertise</span></h2>
+            <p>Créez des formations de qualité et impactez des milliers d'apprenants à travers l'Afrique.</p>
+            <div class="register-stats">
+              <div class="reg-stat"><span class="reg-stat-num">8</span><span>Domaines</span></div>
+              <div class="reg-stat"><span class="reg-stat-num">3</span><span>Enseignants</span></div>
+              <div class="reg-stat"><span class="reg-stat-num">100%</span><span>En ligne</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Form -->
+      <div class="col-lg-6 col-xl-5">
+        <div class="register-form-card">
+
+          <!-- Header -->
+          <div class="register-form-header">
+            <div class="register-role-badge role-teacher-badge">
+              <i class="fas fa-chalkboard-teacher me-2"></i>Compte Enseignant
+            </div>
+            <h1 class="register-form-title">Créer mon compte</h1>
+            <p class="register-form-sub">
+              Déjà inscrit ? <a href="{{ url_for('login') }}" class="text-gold">Se connecter</a>
+              &nbsp;·&nbsp;
+              <a href="{{ url_for('register') }}" class="text-muted-link">Changer de profil</a>
+            </p>
+          </div>
+
+          <!-- Flash messages -->
+          {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for cat, msg in messages %}
+            <div class="alert-secel alert-{{ cat }} mb-3">
+              <i class="fas fa-info-circle me-2"></i>{{ msg }}
+            </div>
+            {% endfor %}
+          {% endif %}
+          {% endwith %}
+
+          <!-- Form -->
+          <form method="POST" action="{{ url_for('register_teacher') }}" novalidate>
+
+            <!-- Personal Info -->
+            <div class="form-section-label">Informations personnelles</div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Nom complet <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" name="full_name" class="input-secel-field"
+                           placeholder="Dr. Aisha Kamara" required
+                           value="{{ request.form.get('full_name','') }}"/>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Nom d'utilisateur <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-at input-icon"></i>
+                    <input type="text" name="username" class="input-secel-field"
+                           placeholder="dr_kamara" required
+                           value="{{ request.form.get('username','') }}"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Adresse e-mail <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" name="email" class="input-secel-field"
+                           placeholder="prof@example.com" required
+                           value="{{ request.form.get('email','') }}"/>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Téléphone</label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-phone input-icon"></i>
+                    <input type="text" name="phone" class="input-secel-field"
+                           placeholder="+243 XXX XXX XXX"
+                           value="{{ request.form.get('phone','') }}"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Teacher-specific -->
+            <div class="form-section-label mt-2">Profil professionnel</div>
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Spécialité <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-code input-icon"></i>
+                    <input type="text" name="specialty" class="input-secel-field"
+                           placeholder="Ex: Cybersécurité, Python, IA..." required
+                           value="{{ request.form.get('specialty','') }}"/>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Années d'expérience</label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-calendar input-icon"></i>
+                    <input type="number" name="years_experience" class="input-secel-field"
+                           placeholder="5" min="0" max="50"
+                           value="{{ request.form.get('years_experience','') }}"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group-secel mb-3">
+              <label class="form-label-secel">Qualifications / Diplômes <span class="req">*</span></label>
+              <div class="input-icon-wrap" style="align-items:flex-start">
+                <i class="fas fa-graduation-cap input-icon" style="padding-top:10px"></i>
+                <textarea name="qualifications" class="input-secel-field"
+                          placeholder="Ex: MSc Informatique - Université de Kinshasa | Certifié AWS | CISSP..."
+                          rows="3" required>{{ request.form.get('qualifications','') }}</textarea>
+              </div>
+            </div>
+
+            <div class="form-group-secel mb-3">
+              <label class="form-label-secel">Biographie professionnelle</label>
+              <div class="input-icon-wrap" style="align-items:flex-start">
+                <i class="fas fa-align-left input-icon" style="padding-top:10px"></i>
+                <textarea name="bio" class="input-secel-field"
+                          placeholder="Présentez-vous brièvement : votre parcours, vos passions, vos réalisations..."
+                          rows="3">{{ request.form.get('bio','') }}</textarea>
+              </div>
+            </div>
+
+            <div class="form-group-secel mb-3">
+              <label class="form-label-secel">Portfolio / Site Web</label>
+              <div class="input-icon-wrap">
+                <i class="fas fa-link input-icon"></i>
+                <input type="url" name="portfolio_url" class="input-secel-field"
+                       placeholder="https://votre-portfolio.com"
+                       value="{{ request.form.get('portfolio_url','') }}"/>
+              </div>
+              <span class="field-hint">GitHub, LinkedIn, site personnel, etc.</span>
+            </div>
+
+            <!-- Password -->
+            <div class="form-section-label mt-2">Sécurité</div>
+            <div class="row g-3 mb-4">
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Mot de passe <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="password" id="pw1" class="input-secel-field"
+                           placeholder="••••••••" required minlength="8"/>
+                    <button type="button" class="pw-toggle" onclick="togglePw('pw1',this)">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-sm-6">
+                <div class="form-group-secel">
+                  <label class="form-label-secel">Confirmer <span class="req">*</span></label>
+                  <div class="input-icon-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="confirm_password" id="pw2" class="input-secel-field"
+                           placeholder="••••••••" required minlength="8"/>
+                    <button type="button" class="pw-toggle" onclick="togglePw('pw2',this)">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Info notice -->
+            <div class="teacher-info-box mb-4">
+              <i class="fas fa-info-circle me-2 text-gold"></i>
+              <span>Votre compte enseignant sera activé après validation par l'équipe SECEL.
+              Vous recevrez une notification par email.</span>
+            </div>
+
+            <!-- Terms -->
+            <div class="form-check-secel mb-4">
+              <input type="checkbox" id="terms" name="terms" class="check-secel" required/>
+              <label for="terms" class="check-label">
+                J'accepte les <a href="#" class="text-gold">Conditions d'utilisation</a> et la
+                <a href="#" class="text-gold">Politique de confidentialité</a>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-secel-teacher w-100">
+              <i class="fas fa-chalkboard-teacher me-2"></i>Créer mon compte enseignant
+            </button>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.register-section { min-height: 100vh; background: var(--bg-dark); padding-top: 20px; }
+
+.register-panel {
+  height: 100%; min-height: 700px; border-radius: 18px; overflow: hidden;
+  position: relative; display: flex; align-items: flex-end;
+}
+.register-panel-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.register-panel-overlay { position: absolute; inset: 0; z-index: 1; }
+.register-panel-teacher .register-panel-overlay { background: linear-gradient(to top, rgba(13,17,23,.95) 0%, rgba(13,17,23,.4) 60%, transparent 100%); }
+.register-panel-text { position: relative; z-index: 2; padding: 32px; color: #fff; }
+.register-panel-text h2 { font-family:'Poppins',sans-serif; font-weight:800; font-size:1.7rem; margin-bottom:10px; }
+.register-panel-text p  { color:rgba(255,255,255,.7); font-size:.9rem; margin-bottom:20px; }
+.register-stats { display:flex; gap:24px; }
+.reg-stat { display:flex; flex-direction:column; align-items:center; }
+.reg-stat-num { font-size:1.5rem; font-weight:900; color:var(--gold); }
+.reg-stat span:last-child { font-size:.72rem; color:rgba(255,255,255,.6); }
+
+.register-form-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 36px 32px;
+}
+.register-form-header { margin-bottom: 24px; }
+.register-role-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 20px; font-size: .78rem; font-weight: 700; margin-bottom: 12px;
+}
+.role-teacher-badge { background: rgba(37,99,235,.12); color: var(--gold); border: 1px solid rgba(37,99,235,.25); }
+.register-form-title { font-family:'Poppins',sans-serif; font-size:1.75rem; font-weight:800; margin-bottom:6px; }
+.register-form-sub { font-size:.875rem; color:var(--text-muted); }
+.text-muted-link { color:var(--text-muted); text-decoration:none; }
+.text-muted-link:hover { color:var(--text-primary); }
+
+.form-section-label {
+  font-size:.7rem; text-transform:uppercase; letter-spacing:1.5px;
+  color:var(--text-muted); font-weight:700; margin-bottom:10px;
+  padding-bottom:6px; border-bottom:1px solid var(--border);
+}
+.form-group-secel { margin-bottom: 0; }
+.form-label-secel { display:block; font-size:.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:5px; }
+.req { color:#f85149; }
+.field-hint { font-size:.74rem; color:var(--text-muted); margin-top:4px; display:block; }
+
+.input-icon-wrap { position: relative; display: flex; align-items: center; }
+.input-icon { position:absolute; left:12px; color:var(--text-muted); font-size:.85rem; z-index:1; pointer-events:none; }
+.input-secel-field {
+  width:100%; background:var(--surface2); border:1px solid var(--border);
+  border-radius:9px; color:var(--text-primary); padding:10px 14px 10px 36px;
+  font-size:.875rem; outline:none; transition:border-color .2s; font-family:inherit;
+}
+.input-secel-field:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.input-secel-field::placeholder { color:var(--text-muted); }
+select.input-secel-field { cursor:pointer; }
+textarea.input-secel-field { resize:vertical; padding-top:10px; }
+
+.pw-toggle { position:absolute; right:10px; background:none; border:none; color:var(--text-muted); cursor:pointer; padding:4px; font-size:.9rem; }
+.pw-toggle:hover { color:var(--gold); }
+
+.teacher-info-box {
+  background: rgba(37,99,235,.07); border: 1px solid rgba(37,99,235,.2);
+  border-radius: 8px; padding: 12px 14px; font-size: .82rem; color: var(--text-muted);
+  display: flex; align-items: flex-start; gap: 4px; line-height: 1.5;
+}
+
+.form-check-secel { display:flex; align-items:flex-start; gap:10px; }
+.check-secel { width:16px; height:16px; accent-color:var(--gold); flex-shrink:0; margin-top:2px; cursor:pointer; }
+.check-label { font-size:.82rem; color:var(--text-muted); line-height:1.5; }
+
+.alert-secel { padding:10px 14px; border-radius:8px; font-size:.855rem; display:flex; align-items:center; gap:8px; }
+.alert-danger  { background:rgba(248,81,73,.1); border:1px solid rgba(248,81,73,.3); color:#f85149; }
+.alert-success { background:rgba(63,185,80,.1); border:1px solid rgba(63,185,80,.3); color:#3fb950; }
+.alert-warning { background:rgba(37,99,235,.1); border:1px solid rgba(37,99,235,.3); color:var(--gold); }
+
+.btn-secel-teacher {
+  background: linear-gradient(135deg, var(--gold), #1d4ed8); color: #fff;
+  border: none; border-radius: 10px; padding: 13px 24px;
+  font-weight: 700; font-size: .95rem; cursor: pointer;
+  transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-secel-teacher:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.w-100 { width: 100%; }
+</style>
+
+<script>
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    inp.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+</script>
+{% endblock %}

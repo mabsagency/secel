@@ -1,0 +1,217 @@
+{% extends 'admin/admin_base.html' %}
+{% block title %}Paiements — SECEL Admin{% endblock %}
+{% block page_title %}<i class="fas fa-credit-card me-2"></i>Gestion des Paiements{% endblock %}
+
+{% block content %}
+
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="admin-kpi-card kpi-gold">
+      <div class="kpi-icon-wrap"><i class="fas fa-coins"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-num">{{ '{:,.0f}'.format(stats.revenue_xaf) }} XAF</div>
+        <div class="kpi-lbl">Revenus (XAF)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="admin-kpi-card kpi-green">
+      <div class="kpi-icon-wrap"><i class="fas fa-check-circle"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-num">{{ stats.successful }}</div>
+        <div class="kpi-lbl">Réussis</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="admin-kpi-card kpi-blue">
+      <div class="kpi-icon-wrap"><i class="fas fa-clock"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-num">{{ stats.pending }}</div>
+        <div class="kpi-lbl">En attente</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="admin-kpi-card kpi-red">
+      <div class="kpi-icon-wrap"><i class="fas fa-times-circle"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-num">{{ stats.failed }}</div>
+        <div class="kpi-lbl">Échoués</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Provider Card — Moneroo + Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="admin-card p-4 provider-card" style="border-top:3px solid #6c47ff;">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        <div style="border-radius:14px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.3);">
+          <img src="{{ url_for('static', filename='img/moneroo.png') }}" alt="Moneroo"
+               style="width:72px;height:72px;object-fit:cover;border-radius:14px;"/>
+        </div>
+        <div>
+          <div style="font-size:1.2rem;font-weight:800;color:#9b76ff;letter-spacing:.5px;">Moneroo</div>
+          <div class="text-muted" style="font-size:.78rem;">Orange Money · MTN MoMo · Wave · Carte bancaire</div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center" style="background:rgba(108,71,255,.08);border-radius:10px;padding:.7rem 1rem;">
+        <span style="color:#aaa;font-size:.82rem;">Total transactions</span>
+        <span style="font-size:1.5rem;font-weight:900;color:#9b76ff;">{{ stats.total }}</span>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-2" style="background:rgba(63,185,80,.07);border-radius:10px;padding:.6rem 1rem;">
+        <span style="color:#aaa;font-size:.82rem;">Revenus confirmés</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#3fb950;">{{ '{:,.0f}'.format(stats.revenue_xaf) }} XAF</span>
+      </div>
+      <div class="mt-2 d-flex align-items-center gap-2" style="font-size:.75rem;color:#aaa;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#6c47ff;display:inline-block;"></span>
+        Passerelle de paiement unifiée — Afrique Centrale
+      </div>
+    </div>
+  </div>
+
+  <!-- Répartition statuts -->
+  <div class="col-md-6">
+    <div class="admin-card p-4 h-100" style="border-top:3px solid var(--gold);">
+      <div style="font-size:.85rem;font-weight:700;color:var(--text-secondary);margin-bottom:16px;text-transform:uppercase;letter-spacing:.8px;">
+        <i class="fas fa-chart-bar me-2 text-warning"></i>Répartition des statuts
+      </div>
+      {% set total = stats.total if stats.total > 0 else 1 %}
+      {% set pct_ok  = (stats.successful / total * 100)|round(1) %}
+      {% set pct_pen = (stats.pending   / total * 100)|round(1) %}
+      {% set pct_err = (stats.failed    / total * 100)|round(1) %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span style="color:#3fb950;"><i class="fas fa-check-circle me-1"></i>Réussis</span>
+          <span style="color:#3fb950;font-weight:700;">{{ stats.successful }} ({{ pct_ok }}%)</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="background:#3fb950;height:100%;width:{{ pct_ok }}%;border-radius:4px;transition:width .6s;"></div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span style="color:var(--gold);"><i class="fas fa-clock me-1"></i>En attente</span>
+          <span style="color:var(--gold);font-weight:700;">{{ stats.pending }} ({{ pct_pen }}%)</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="background:var(--gold);height:100%;width:{{ pct_pen }}%;border-radius:4px;transition:width .6s;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+          <span style="color:#f85149;"><i class="fas fa-times-circle me-1"></i>Échoués</span>
+          <span style="color:#f85149;font-weight:700;">{{ stats.failed }} ({{ pct_err }}%)</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
+          <div style="background:#f85149;height:100%;width:{{ pct_err }}%;border-radius:4px;transition:width .6s;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payments Table — Visible uniquement par l'admin -->
+<div class="admin-card">
+  <div class="admin-card-header d-flex justify-content-between align-items-center">
+    <h6>
+      <i class="fas fa-list me-2 text-warning"></i>Toutes les Transactions
+      <span class="admin-only-badge ms-2">
+        <i class="fas fa-lock me-1"></i>Admin uniquement
+      </span>
+    </h6>
+    <div class="d-flex gap-2">
+      <input type="text" class="input-secel input-sm" placeholder="Rechercher..."
+             oninput="filterAdminTable(this,'payTable')" style="min-width:180px"/>
+    </div>
+  </div>
+  <div class="admin-card-body p-0">
+    <div class="table-responsive">
+      <table class="admin-table" id="payTable">
+        <thead>
+          <tr>
+            <th>Référence</th>
+            <th>Utilisateur</th>
+            <th>Cours</th>
+            <th class="admin-col">Montant</th>
+            <th>Passerelle</th>
+            <th>Statut</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9d1d9;" title="{{ p.reference }}">
+              {{ p.reference[:22] if p.reference else '—' }}
+            </td>
+            <td>
+              <div class="fw-semibold" style="color:var(--admin-text);">{{ p.user.full_name or p.user.username }}</div>
+              <small style="color:var(--admin-secondary);font-size:.75rem;">{{ p.user.email }}</small>
+            </td>
+            <td style="color:var(--admin-text);font-size:.83rem;">{{ p.course.title[:35] if p.course else '—' }}</td>
+            <!-- Montant : colonne réservée admin -->
+            <td class="admin-col fw-bold" style="color:#9b76ff;">
+              {{ '{:,.0f}'.format(p.amount) }} {{ p.currency }}
+            </td>
+            <td>
+              <span class="pay-badge pay-moneroo">
+                <img src="{{ url_for('static', filename='img/moneroo.png') }}" alt="Moneroo"
+                     style="width:13px;height:13px;object-fit:cover;border-radius:3px;margin-right:4px;flex-shrink:0;"/>
+                Moneroo
+              </span>
+            </td>
+            <td>
+              <span class="payment-status-badge status-{{ p.status }}">
+                {% if p.status == 'success' %}<i class="fas fa-check-circle me-1"></i>
+                {% elif p.status == 'pending' %}<i class="fas fa-clock me-1"></i>
+                {% else %}<i class="fas fa-times-circle me-1"></i>{% endif %}
+                {{ p.status }}
+              </span>
+            </td>
+            <td style="color:var(--admin-secondary);font-size:.8rem;">{{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-5">Aucun paiement enregistré</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.admin-only-badge {
+  background:rgba(248,81,73,.12); border:1px solid rgba(248,81,73,.25);
+  color:#f85149; font-size:.68rem; font-weight:700;
+  padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.5px;
+  vertical-align:middle;
+}
+.admin-col {
+  background:rgba(108,71,255,.04);
+  border-left:2px solid rgba(108,71,255,.15);
+}
+.pay-badge { display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700; }
+.pay-moneroo { background:rgba(108,71,255,.12);color:#9b76ff;border:1px solid rgba(108,71,255,.25); }
+.payment-status-badge { display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700; }
+.status-success   { background:rgba(63,185,80,.12);color:#3fb950;border:1px solid rgba(63,185,80,.25); }
+.status-pending   { background:rgba(37,99,235,.12);color:var(--gold);border:1px solid rgba(37,99,235,.25); }
+.status-failed    { background:rgba(248,81,73,.12);color:#f85149;border:1px solid rgba(248,81,73,.25); }
+.status-cancelled { background:rgba(139,148,158,.12);color:#8b949e;border:1px solid rgba(139,148,158,.25); }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterAdminTable(input, tid) {
+  const f = input.value.toLowerCase();
+  document.getElementById(tid)?.querySelectorAll('tbody tr').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(f) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

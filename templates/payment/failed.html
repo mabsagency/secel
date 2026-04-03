@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Paiement Échoué — SECEL{% endblock %}
+
+{% block content %}
+<div class="pay-result-wrap">
+  <div class="pay-result-card">
+
+    <!-- Icône échec -->
+    <div class="pr-icon-wrap pr-failed-icon">
+      <div class="pr-circle-failed"></div>
+      <i class="fas fa-times pr-cross"></i>
+    </div>
+
+    <h2 class="pr-title">Paiement non abouti</h2>
+    <p class="pr-sub">
+      Votre paiement n'a pas pu être confirmé. Vous n'avez pas été débité.
+      <br>Vous pouvez réessayer à tout moment.
+    </p>
+
+    <!-- Causes fréquentes -->
+    <div class="pr-causes">
+      <div class="pr-cause-title"><i class="fas fa-info-circle me-2"></i>Causes fréquentes</div>
+      <ul class="pr-cause-list">
+        <li>Solde insuffisant sur le compte Mobile Money</li>
+        <li>Paiement annulé ou délai expiré</li>
+        <li>Mauvais PIN ou code de confirmation</li>
+        <li>Limite de transaction journalière atteinte</li>
+      </ul>
+    </div>
+
+    <!-- Récapitulatif -->
+    <div class="pr-recap">
+      <div class="pr-recap-row">
+        <span><i class="fas fa-book-open me-2 text-danger"></i>Formation</span>
+        <span class="fw-bold">{{ course.title[:50] }}</span>
+      </div>
+      <div class="pr-recap-row">
+        <span><i class="fas fa-tag me-2 text-danger"></i>Prix</span>
+        <span class="fw-bold">{{ course.price|int }} {{ course.currency }}</span>
+      </div>
+      <div class="pr-recap-row">
+        <span><i class="fas fa-circle me-2 text-danger"></i>Statut</span>
+        <span class="pr-badge-failed"><i class="fas fa-times-circle me-1"></i>Échoué</span>
+      </div>
+    </div>
+
+    <!-- Logo Moneroo -->
+    <div class="pr-powered">
+      <img src="{{ url_for('static', filename='img/moneroo.png') }}" style="width:20px;height:20px;border-radius:5px;object-fit:contain;background:#fff;" alt="Moneroo"/>
+      <span>Paiement sécurisé par <strong>Moneroo</strong></span>
+    </div>
+
+    <!-- Actions -->
+    <div class="pr-actions">
+      <a href="{{ url_for('payment_checkout', course_id=course.id) }}" class="pr-btn-retry">
+        <i class="fas fa-redo me-2"></i>Réessayer le paiement
+      </a>
+      <a href="{{ url_for('course_detail', course_id=course.id) }}" class="pr-btn-sec">
+        <i class="fas fa-arrow-left me-2"></i>Retour au cours
+      </a>
+      <a href="{{ url_for('courses') }}" class="pr-btn-sec" style="opacity:.7">
+        <i class="fas fa-th-large me-2"></i>Voir le catalogue
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.pay-result-wrap {
+  min-height: 80vh; display: flex; align-items: center; justify-content: center;
+  padding: 40px 16px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(248,81,73,.07) 0%, transparent 60%);
+}
+.pay-result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; max-width: 500px; width: 100%;
+  text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,.25);
+}
+.pr-icon-wrap {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 28px;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.pr-failed-icon { background: rgba(248,81,73,.1); }
+.pr-circle-failed {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid #f85149;
+  animation: failRing 0.5s ease-out forwards;
+}
+@keyframes failRing {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.pr-cross {
+  font-size: 2.2rem; color: #f85149;
+  animation: popIn 0.3s 0.3s ease-out both;
+}
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.pr-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 10px; }
+.pr-sub   { color: var(--text-muted); font-size: .88rem; margin-bottom: 24px; line-height: 1.6; }
+
+/* Causes */
+.pr-causes {
+  background: rgba(248,81,73,.05); border: 1px solid rgba(248,81,73,.2);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; text-align: left;
+}
+.pr-cause-title { font-size: .8rem; font-weight: 700; color: #f85149; margin-bottom: 10px; }
+.pr-cause-list  { margin: 0; padding-left: 16px; font-size: .8rem; color: var(--text-muted); }
+.pr-cause-list li { margin-bottom: 5px; }
+
+/* Récapitulatif */
+.pr-recap {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left;
+}
+.pr-recap-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  font-size: .83rem; gap: 12px;
+}
+.pr-recap-row:last-child { border-bottom: none; }
+.pr-recap-row span:first-child { color: var(--text-muted); white-space: nowrap; }
+.pr-badge-failed {
+  background: rgba(248,81,73,.15); color: #f85149;
+  padding: 3px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700;
+}
+
+/* Powered by */
+.pr-powered {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: .75rem; color: var(--text-muted); margin-bottom: 28px;
+}
+
+/* Boutons */
+.pr-actions { display: flex; flex-direction: column; gap: 10px; }
+.pr-btn-retry {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 24px; border-radius: 12px;
+  background: linear-gradient(135deg, #f85149, #da3633);
+  color: white; font-weight: 800; font-size: .95rem;
+  text-decoration: none; transition: all .2s;
+  box-shadow: 0 4px 16px rgba(248,81,73,.3);
+}
+.pr-btn-retry:hover { filter: brightness(1.1); transform: translateY(-2px); color: white; }
+.pr-btn-sec {
+  display: flex; align-items: center; justify-content: center;
+  padding: 11px 24px; border-radius: 12px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); font-weight: 600; font-size: .85rem;
+  text-decoration: none; transition: all .2s;
+}
+.pr-btn-sec:hover { background: var(--surface2); color: var(--text-primary); }
+</style>
+{% endblock %}

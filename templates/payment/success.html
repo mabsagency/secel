@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}Paiement Confirmé — SECEL{% endblock %}
+
+{% block content %}
+<div class="pay-result-wrap">
+  <div class="pay-result-card">
+
+    <!-- Icône succès animée -->
+    <div class="pr-icon-wrap pr-success-icon">
+      <div class="pr-circle-anim"></div>
+      <i class="fas fa-check pr-check"></i>
+    </div>
+
+    <h2 class="pr-title">Paiement confirmé !</h2>
+    <p class="pr-sub">Votre paiement a bien été reçu et validé. Vous avez maintenant accès à la formation.</p>
+
+    <!-- Récapitulatif -->
+    <div class="pr-recap">
+      <div class="pr-recap-row">
+        <span><i class="fas fa-book-open me-2 text-success"></i>Formation</span>
+        <span class="fw-bold">{{ course.title[:50] }}</span>
+      </div>
+      {% if payment %}
+      <div class="pr-recap-row">
+        <span><i class="fas fa-hashtag me-2 text-success"></i>Référence</span>
+        <span class="pr-ref">{{ payment.reference.split('|')[0] if payment.reference and '|' in payment.reference else (payment.reference or '—') }}</span>
+      </div>
+      <div class="pr-recap-row">
+        <span><i class="fas fa-calendar me-2 text-success"></i>Date</span>
+        <span>{{ (payment.completed_at or payment.created_at).strftime('%d/%m/%Y à %H:%M') if (payment.completed_at or payment.created_at) else '—' }}</span>
+      </div>
+      {% endif %}
+      <div class="pr-recap-row">
+        <span><i class="fas fa-shield-alt me-2 text-success"></i>Statut</span>
+        <span class="pr-badge-success"><i class="fas fa-check-circle me-1"></i>Payé</span>
+      </div>
+    </div>
+
+    <!-- Logo Moneroo -->
+    <div class="pr-powered">
+      <img src="{{ url_for('static', filename='img/moneroo.png') }}" style="width:20px;height:20px;border-radius:5px;object-fit:contain;background:#fff;" alt="Moneroo"/>
+      <span>Paiement sécurisé par <strong>Moneroo</strong></span>
+    </div>
+
+    <!-- Actions -->
+    <div class="pr-actions">
+      <a href="{{ url_for('course_detail', course_id=course.id) }}" class="pr-btn-main">
+        <i class="fas fa-play me-2"></i>Commencer la formation
+      </a>
+      <a href="{{ url_for('courses') }}" class="pr-btn-sec">
+        <i class="fas fa-th-large me-2"></i>Catalogue
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.pay-result-wrap {
+  min-height: 80vh; display: flex; align-items: center; justify-content: center;
+  padding: 40px 16px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(63,185,80,.08) 0%, transparent 60%);
+}
+.pay-result-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 48px 40px; max-width: 500px; width: 100%;
+  text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,.25);
+}
+
+/* Icône animée */
+.pr-icon-wrap {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 28px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.pr-success-icon { background: rgba(63,185,80,.12); }
+.pr-circle-anim {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 3px solid #3fb950;
+  animation: successRing 0.6s ease-out forwards;
+}
+@keyframes successRing {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.pr-check {
+  font-size: 2.2rem; color: #3fb950;
+  animation: popIn 0.4s 0.3s ease-out both;
+}
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.pr-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 10px; }
+.pr-sub   { color: var(--text-muted); font-size: .9rem; margin-bottom: 28px; }
+
+/* Récapitulatif */
+.pr-recap {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: left;
+}
+.pr-recap-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  font-size: .83rem; gap: 12px;
+}
+.pr-recap-row:last-child { border-bottom: none; }
+.pr-recap-row span:first-child { color: var(--text-muted); white-space: nowrap; }
+.pr-recap-row span:last-child  { text-align: right; word-break: break-all; }
+.pr-ref {
+  font-family: monospace; font-size: .78rem;
+  color: #58a6ff; background: rgba(88,166,255,.08);
+  padding: 2px 8px; border-radius: 5px;
+}
+.pr-badge-success {
+  background: rgba(63,185,80,.15); color: #3fb950;
+  padding: 3px 10px; border-radius: 6px; font-size: .78rem; font-weight: 700;
+}
+
+/* Powered by */
+.pr-powered {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: .75rem; color: var(--text-muted); margin-bottom: 28px;
+}
+
+/* Boutons */
+.pr-actions { display: flex; flex-direction: column; gap: 12px; }
+.pr-btn-main {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 24px; border-radius: 12px;
+  background: linear-gradient(135deg, #3fb950, #2d9e3d);
+  color: white; font-weight: 800; font-size: .95rem;
+  text-decoration: none; transition: all .2s;
+  box-shadow: 0 4px 16px rgba(63,185,80,.3);
+}
+.pr-btn-main:hover { filter: brightness(1.1); transform: translateY(-2px); color: white; }
+.pr-btn-sec {
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px 24px; border-radius: 12px;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text-muted); font-weight: 600; font-size: .88rem;
+  text-decoration: none; transition: all .2s;
+}
+.pr-btn-sec:hover { background: var(--surface2); color: var(--text-primary); }
+</style>
+{% endblock %}
